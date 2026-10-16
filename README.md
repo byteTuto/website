@@ -68,7 +68,7 @@ Les pull requests ne lancent que les tests.
 ```bash
 ssh ec2-user@<IP>
 cd /opt/bytetuto
-STAGING=1 bash deploy/init-ssl.sh   # test à blanc
+STAGING=1 bash deploy/init-ssl.sh   # répétition, n'installe rien
 bash deploy/init-ssl.sh             # vrai certificat
 ```
 
