@@ -5,7 +5,10 @@ Le nom s'écrit toujours `byteTuto`. Signature : « Apprends la tech, un byte à
 
 ## Stack
 - Site statique : `site/` (HTML + CSS inline, JS dans `site/app.js` — la CSP interdit les scripts inline).
-- Serveur : nginx (image `nginx:stable-alpine`), conf dans `nginx/`.
+- Serveur : nginx (image `nginx:stable-alpine`), conf dans `nginx/` ; `/api/` relayé vers le service `api/`.
+- Inscriptions : `api/app.py` (Python stdlib + SQLite, volume `api-data`), image `ghcr.io/bytetuto/website-api`. Test : `api/test_api.py`.
+- Pages légales : `site/mentions-legales/`, `site/confidentialite/` — à mettre à jour si on collecte d'autres données ou si le site devient professionnel (SIRET).
+- Teaser : `site/media/teaser.{webm,mp4}` (rendu depuis les scripts vidéo du projet, 1280×720, 9 s).
 - Conteneur : `Dockerfile`, `docker-compose.yml` (prod), `docker-compose.dev.yml` (local, port 8080).
 - CI/CD : `.github/workflows/deploy.yml` → GHCR → EC2 par SSH (`deploy/deploy.sh`).
 - HTTPS : Let's Encrypt via certbot (`deploy/init-ssl.sh`), renouvellement par cron.

@@ -17,6 +17,19 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
+  # Service d'inscription « Préviens-moi du lancement » (non exposé : joint par nginx sur /api/)
+  api:
+    image: ${API_IMAGE:-ghcr.io/bytetuto/website-api:latest}
+    container_name: bytetuto-api
+    restart: unless-stopped
+    environment:
+      COUNTER_MIN: ${COUNTER_MIN:-30}
+    volumes:
+      - api-data:/data          # base SQLite des inscrits — à sauvegarder (voir README)
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+
   # Utilisé à la demande par deploy/init-ssl.sh et le cron de renouvellement
   certbot:
     image: certbot/certbot:latest
@@ -24,3 +37,6 @@ services:
     volumes:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
+
+volumes:
+  api-data:

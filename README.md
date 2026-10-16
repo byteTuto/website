@@ -74,6 +74,34 @@ bash deploy/init-ssl.sh             # vrai certificat
 
 nginx détecte le certificat au redémarrage et bascule seul en HTTPS (HTTP → HTTPS, www → domaine nu, HSTS). Renouvellement automatique par cron.
 
+## 6. Inscriptions « Préviens-moi du lancement »
+
+Le formulaire de l'accueil (et la commande `inscris` du terminal) envoie l'email au petit service `api/`
+(Python, bibliothèque standard + SQLite, conteneur `bytetuto-api`). nginx le relaie sur `/api/`.
+
+| Route | Rôle |
+| --- | --- |
+| `POST /api/subscribe` | inscription (JSON, ou formulaire classique sans JavaScript → `/#merci`) |
+| `GET /api/count` | nombre d'inscrits ; `show` passe à `true` à partir de `COUNTER_MIN` (30 par défaut) |
+| `GET /api/health` | santé (healthcheck Docker) |
+
+Protections : pot de miel anti-robot, 5 inscriptions / 10 min par IP dans l'API et 10 / min dans nginx, emails normalisés,
+réponse identique pour un email déjà inscrit. L'adresse IP n'est pas stockée avec l'email.
+
+Sur l'EC2, depuis `/opt/bytetuto` :
+
+```bash
+docker compose exec api python app.py count                    # nombre d'inscrits
+docker compose exec api python app.py export > inscrits.csv    # pour l'email de lancement / l'outil de newsletter
+docker compose exec api python app.py delete toi@exemple.fr    # demande de suppression (RGPD)
+# sauvegarde de la base (volume Docker api-data)
+docker run --rm -v bytetuto_api-data:/data -v "$PWD":/out alpine cp /data/subscribers.db /out/inscrits-$(date +%F).db
+```
+
+Le seuil d'affichage du compteur se change avec `COUNTER_MIN=…` dans `.env`, puis `docker compose up -d api`.
+En local, `docker compose -f docker-compose.dev.yml up --build` lance aussi l'API (compteur visible dès 3 inscrits).
+Test de bout en bout : `python3 api/test_api.py http://localhost:8080` (API lancée avec `RATE_MAX=8`, base vide).
+
 ## À personnaliser
 
 - Liens YouTube / TikTok dans `site/index.html` (`@bytetuto` par défaut).
