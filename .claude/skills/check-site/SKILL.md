@@ -16,13 +16,19 @@ curl -fsS http://localhost:8088/healthz                       # -> ok
 curl -fsS http://localhost:8088/ | grep -c byteTuto           # > 0
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8088/x   # -> 404
 curl -sI http://localhost:8088/ | grep -iE 'content-security|x-frame|cache-control'
+curl -sI http://localhost:8088/index.md | grep -i 'content-type: text/markdown'
+curl -s -H 'Accept: text/markdown' http://localhost:8088/ | head -3   # -> front matter ---
+python3 scripts/check_seo_agents.py                            # SEO + agent-friendly
+python3 scripts/check_responsive.py --base http://localhost:8088 --shots /tmp/rs   # responsive (Playwright)
 docker rm -f bt-check
 ```
+
+Playwright, la première fois : `pip install playwright && python3 -m playwright install chromium`.
 
 Scripts shell : `bash -n deploy/*.sh nginx/*.sh` (et `shellcheck` s'il est installé).
 
 ## Points à contrôler à l'œil (dev : `docker compose -f docker-compose.dev.yml up` → http://localhost:8080)
 - L'animation du fond tourne sans saccade, et s'arrête avec « réduire les animations » activé.
 - Pas d'erreur dans la console (la CSP bloque tout script inline : le JS va dans `site/app.js`).
-- Rendu mobile à 375 px : pas de défilement horizontal.
+- Captures `/tmp/rs/*-320x640.png` et `*-375x667.png` : rien de coupé, rien de collé aux bords.
 - Charte respectée (voir skill `bytetuto-brand`).

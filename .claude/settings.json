@@ -18,7 +18,9 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(bash -n *)",
-      "Bash(shellcheck *)"
+      "Bash(shellcheck *)",
+      "Bash(python3 scripts/check_seo_agents.py*)",
+      "Bash(python3 scripts/check_responsive.py*)"
     ],
     "ask": [
       "Bash(git push *)",

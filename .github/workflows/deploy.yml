@@ -22,6 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: SEO + agent-friendly (.md, llms.txt, sitemap, JSON-LD)
+        run: python3 scripts/check_seo_agents.py
+
       - name: Build
         run: docker build -t bytetuto-site:ci .
 
@@ -36,8 +39,30 @@ jobs:
           curl -fsS http://localhost:8080/app.js -o /dev/null
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nexiste-pas)" = "404"
           curl -sI http://localhost:8080/ | grep -qi "content-security-policy"
+          curl -sI http://localhost:8080/index.md | grep -qi "content-type: text/markdown"
+          curl -sI http://localhost:8080/index.md | grep -qi "x-robots-tag: noindex"
+          curl -fsS -H "Accept: text/markdown" http://localhost:8080/ | head -1 | grep -q "^---"
+          curl -fsS http://localhost:8080/llms.txt | head -1 | grep -q "^# byteTuto"
+          curl -fsS http://localhost:8080/sitemap.xml | grep -q "<urlset"
           echo "✔ smoke test OK"
-          docker rm -f web
+
+      - name: Responsive (Playwright, 320 → 1440 px)
+        run: |
+          pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/check_responsive.py --base http://localhost:8080 --shots responsive-shots
+
+      - name: Captures responsive
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: responsive-shots
+          path: responsive-shots
+          if-no-files-found: ignore
+
+      - name: Arrêt du conteneur
+        if: always()
+        run: docker rm -f web || true
 
   # 2. Publication de l'image sur GitHub Container Registry (main uniquement)
   publish:

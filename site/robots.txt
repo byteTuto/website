@@ -1,2 +1,5 @@
+# byteTuto — tout le monde est bienvenu, y compris les crawlers IA (voir .claude/skills/site-agent-friendly)
 User-agent: *
 Allow: /
+
+Sitemap: https://bytetuto.com/sitemap.xml
