@@ -8,7 +8,7 @@ Routes (derrière nginx, préfixe /api/) :
 
 Administration (sur l'EC2) :
   docker compose exec api python app.py count
-  docker compose exec api python app.py export > inscrits.csv
+  docker compose exec -T api python app.py export > inscrits.csv
   docker compose exec api python app.py delete toi@exemple.fr     # droit à l'effacement (RGPD)
 
 Variables : DB_PATH (/data/subscribers.db), COUNTER_MIN (30), RATE_MAX (5), PORT (8000).
