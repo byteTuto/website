@@ -44,6 +44,18 @@
         "inLanguage": "fr-FR",
         "description": "Des tutos tech courts et concrets : code, outils, astuces.",
         "publisher": { "@id": "https://bytetuto.com/#org" }
+      },
+      {
+        "@type": "VideoObject",
+        "@id": "https://bytetuto.com/#teaser",
+        "name": "byteTuto — teaser « Coming soon »",
+        "description": "Le teaser néon de byteTuto : le logo ▶_ s'allume, avec la signature sonore de la chaîne.",
+        "thumbnailUrl": "https://bytetuto.com/media/teaser-poster.webp",
+        "contentUrl": "https://bytetuto.com/media/teaser.mp4",
+        "uploadDate": "2026-10-16",
+        "duration": "PT9S",
+        "inLanguage": "fr-FR",
+        "publisher": { "@id": "https://bytetuto.com/#org" }
       }
     ]
   }
@@ -101,18 +113,20 @@
         radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,.55) 100%);
     }
     /* blocs qui débordent des bords, comme sur la bannière YouTube */
-    .block { position: fixed; z-index: 1; pointer-events: none; }
+    /* dans le premier écran seulement : ils ne passent pas sous les sections du bas quand on défile */
+    .blocks { position: absolute; top: 0; left: 0; right: 0; height: 100svh; overflow: hidden; z-index: 1; pointer-events: none; }
+    .block { position: absolute; }
     .block--byte  { left: -40px; bottom: -40px; width: min(34vw, 360px); height: min(16vw, 170px); background: var(--byte); border-radius: var(--radius-lg); animation: drift 14s ease-in-out infinite; }
     .block--spark { right: -30px; top: -30px; width: min(16vw, 170px); height: min(12vw, 120px); background: var(--spark); border-radius: var(--radius-lg); animation: drift 17s ease-in-out infinite reverse; }
     .block--tile  { right: -40px; bottom: -40px; width: min(26vw, 280px); height: min(18vw, 190px); background: var(--tile); border-radius: var(--radius-lg); animation: drift 20s ease-in-out infinite; }
     @keyframes drift { 50% { transform: translate(14px, -10px); } }
 
     /* ---------- Contenu ---------- */
-    main {
-      position: relative; z-index: 2;
+    main { position: relative; z-index: 2; }
+    .hero {
       min-height: 100svh;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 48px 16px 32px;
+      padding: 48px max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left));
       text-align: center;
     }
 
@@ -166,22 +180,93 @@
     .lead strong { color: var(--ink); font-weight: 600; }
     @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 
+    /* ---------- Inscription ---------- */
+    .signup { width: min(520px, 100%); margin: 0 auto 24px; opacity: 0; animation: rise .7s ease 1.85s forwards; }
+    .signup__row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 6px 6px 14px;
+      background: rgba(23,27,34,.9);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .signup__row:focus-within { border-color: var(--byte); box-shadow: 0 0 0 3px rgba(184,240,60,.18); }
+    .signup__prompt { font: 500 16px/1 var(--font-mono); color: var(--byte); flex: none; }
+    .signup__input {
+      flex: 1; min-width: 0; height: 44px;
+      background: transparent; border: 0; outline: 0;
+      color: var(--ink); font: 500 16px/1 var(--font-mono);
+    }
+    .signup__input::placeholder { color: var(--ink-muted); opacity: .8; }
+    .signup__btn { flex: none; min-height: 44px; border: 0; cursor: pointer; }
+    .signup__btn[disabled] { opacity: .7; cursor: progress; transform: none; }
+    .signup--done .signup__row { border-color: var(--byte); }
+    .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+    .signup__msg { min-height: 0; margin: 10px 0 0; font: 500 14px/22px var(--font-mono); text-align: left; }
+    .signup__msg:empty { display: none; }
+    .signup__msg.is-ok, .flash--ok { color: var(--byte); }
+    .signup__msg.is-err, .flash--err { color: #FF7A5C; }
+    .flash { display: none; margin: 10px 0 0; font: 500 14px/22px var(--font-mono); text-align: left; }
+    .flash:target { display: block; }
+    .signup__count { margin: 14px 0 0; font: 500 14px/20px var(--font-mono); color: var(--ink-muted); text-wrap: balance; }
+    .signup__count[hidden] { display: none; }
+    .signup__count b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .pulse { display: inline-block; vertical-align: 1px; margin-right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--byte); animation: ping-byte 1.8s ease-out infinite; }
+    @keyframes ping-byte { 0% { box-shadow: 0 0 0 0 rgba(184,240,60,.55); } 70%, 100% { box-shadow: 0 0 0 8px rgba(184,240,60,0); } }
+    .signup__legal { margin: 12px 0 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+    .signup__legal a { color: var(--ink); }
+    .signup__legal a:hover { color: var(--byte); }
+
+    /* ---------- Sections sous la ligne de flottaison ---------- */
+    .more {
+      width: min(1120px, 100%); margin: 0 auto;
+      padding: 8px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left));
+      display: grid; gap: 24px;
+    }
+    @media (min-width: 900px) { .more { grid-template-columns: 1fr 1fr; align-items: start; } }
+    .panel {
+      min-width: 0;
+      background: rgba(14,17,22,.92);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 20px 16px;
+    }
+    @media (min-width: 600px) { .panel { padding: 28px 28px 24px; } }
+    .panel__title { font: 600 24px/30px var(--font-display); margin: 0 0 6px; display: flex; align-items: baseline; gap: 10px; }
+    .panel__kicker { font: 500 13px/1 var(--font-mono); color: var(--byte); }
+    .panel__lead { margin: 0 0 18px; color: var(--ink-muted); }
+    .panel__lead code { white-space: nowrap; font: 500 14px/1 var(--font-mono); color: var(--byte); background: var(--byte-tint); padding: 2px 6px; border-radius: var(--radius-sm); }
+
     /* ---------- Terminal ---------- */
     .term {
-      width: min(520px, 100%);
+      width: 100%;
       text-align: left;
-      background: rgba(23,27,34,.86);
-      backdrop-filter: blur(6px);
+      background: rgba(23,27,34,.92);
       border: 1px solid var(--line);
       border-radius: var(--radius-md);
       overflow: hidden;
-      margin-bottom: 32px;
-      opacity: 0; animation: rise .7s ease 1.85s forwards;
+      cursor: text;
     }
+    .term:focus-within { border-color: rgba(184,240,60,.5); }
+    .term__input { display: flex; align-items: center; gap: 10px; padding: 0 16px 14px; }
+    .term__input[hidden] { display: none; }
+    .term__input input {
+      flex: 1; min-width: 0; height: 32px;
+      background: transparent; border: 0; outline: 0; caret-color: var(--byte);
+      color: var(--ink); font: 500 16px/1 var(--font-mono);
+    }
+    .term__input input::placeholder { color: var(--line); }
+    .term__body a { color: var(--byte); }
+    .term__body .cmd { color: var(--ink); }
+    .term__body .err { color: #FF7A5C; }
+    .term__body .h { color: var(--ink); }
     .term__bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
     .term__bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
     .term__bar span { margin-left: auto; font: 500 12px/16px var(--font-mono); color: var(--ink-muted); }
-    .term__body { padding: 14px 16px 16px; font: 500 14px/22px var(--font-mono); min-height: 150px; }
+    .term__body {
+      padding: 14px 16px 6px; font: 500 14px/22px var(--font-mono);
+      height: 260px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+    }
     .term__body .p { color: var(--byte); }
     .term__body .ok { color: var(--byte); }
     .term__body .mut { color: var(--ink-muted); }
@@ -206,9 +291,48 @@
     .btn--ghost:hover { border-color: var(--byte); }
     .btn svg { width: 18px; height: 18px; flex: none; }
 
+    .btn--ghost { cursor: pointer; }
+    .actions { margin-bottom: 0; }
+
+    /* ---------- Vidéo ---------- */
+    .video { position: relative; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--line); background: #080A0F; }
+    .video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+    .video__ctrl { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; gap: 8px; justify-content: space-between; }
+    .video__ctrl[hidden] { display: none; }
+    .vbtn {
+      display: inline-flex; align-items: center; gap: 6px;
+      min-height: 44px; padding: 0 14px;
+      font: 600 14px/1 var(--font-sans); color: var(--ink);
+      background: rgba(14,17,22,.78); border: 1px solid var(--line); border-radius: 999px;
+      cursor: pointer; transition: border-color .15s ease, background .15s ease;
+    }
+    .vbtn:hover { border-color: var(--byte); }
+    .vbtn:focus-visible { outline: 2px solid var(--byte); outline-offset: 2px; }
+    .vbtn svg { width: 18px; height: 18px; flex: none; }
+    .vbtn .i-play, .vbtn .i-on { display: none; }
+    #teaser-play[aria-pressed="true"] .i-pause { display: none; }
+    #teaser-play[aria-pressed="true"] .i-play { display: block; }
+    #teaser-sound[aria-pressed="true"] { background: var(--byte); color: var(--on-byte); border-color: var(--byte); }
+    #teaser-sound[aria-pressed="true"] .i-off { display: none; }
+    #teaser-sound[aria-pressed="true"] .i-on { display: block; }
+
+    /* apparition au défilement (seulement si le JS tourne) */
+    .js .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+    .js .reveal.is-in { opacity: 1; transform: none; }
+
+    @container signup (max-width: 400px) {
+      .signup__row { flex-wrap: wrap; padding: 6px; }
+      .signup__prompt { padding-left: 8px; }
+      .signup__input { flex-basis: calc(100% - 40px); }
+      .signup__btn { width: 100%; justify-content: center; }
+    }
+    .signup { container: signup / inline-size; }
+
     footer {
+      position: relative; z-index: 2;
+      text-align: center;
+      padding: 0 16px 40px;
       font: 500 12px/18px var(--font-mono); color: var(--ink-muted);
-      opacity: 0; animation: rise .7s ease 2.1s forwards;
     }
     footer a { color: var(--ink); text-decoration: none; }
     footer a:hover { color: var(--byte); text-decoration: underline; }
@@ -230,12 +354,15 @@
 </head>
 <body>
   <canvas id="bg" aria-hidden="true"></canvas>
-  <div class="block block--byte" aria-hidden="true"></div>
-  <div class="block block--spark" aria-hidden="true"></div>
-  <div class="block block--tile" aria-hidden="true"></div>
+  <div class="blocks" aria-hidden="true">
+    <div class="block block--byte"></div>
+    <div class="block block--spark"></div>
+    <div class="block block--tile"></div>
+  </div>
   <div class="vignette" aria-hidden="true"></div>
 
   <main>
+    <div class="hero">
     <!-- Logo byteTuto (symbole ▶_ + logotype monoline, version fond sombre) -->
     <svg class="logo" viewBox="-6 -22 485 116" role="img" aria-labelledby="logo-title">
       <title id="logo-title">byteTuto</title>
@@ -272,23 +399,37 @@
 
     <p class="lead">
       Des tutos tech <strong>courts et concrets</strong> — code, outils, astuces.
-      Le site arrive, <strong>un byte à la fois</strong>. En attendant, retrouve-nous sur YouTube et TikTok.
+      Le site arrive, <strong>un byte à la fois</strong>. Laisse ton email, on te prévient au lancement.
     </p>
 
-    <section class="term" aria-label="Avancement du site">
-      <div class="term__bar" aria-hidden="true"><i></i><i></i><i></i><span>~/bytetuto.com</span></div>
-      <div class="term__body" id="term" aria-live="off">
-        <!-- rempli par le script ; contenu statique si JS désactivé -->
-        <div class="term__line"><span class="p">$</span> npm run build</div>
-        <div class="term__line"><span class="ok">✔</span> logo · <span class="ok">✔</span> intro vidéo · <span class="sp">▶</span> site…</div>
+    <form class="signup" id="inscription" action="/api/subscribe" method="post" novalidate>
+      <div class="signup__row">
+        <span class="signup__prompt" aria-hidden="true">$</span>
+        <label class="sr-only" for="email">Ton adresse email</label>
+        <input class="signup__input" id="email" name="email" type="email" inputmode="email" autocomplete="email"
+               placeholder="ton@email.fr" required maxlength="254" aria-describedby="signup-legal signup-msg">
+        <button class="btn btn--primary signup__btn" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          Préviens-moi
+        </button>
       </div>
-    </section>
+      <!-- pot de miel : invisible pour les humains, rempli par les robots -->
+      <div class="hp" aria-hidden="true">
+        <label for="website">Ne pas remplir</label>
+        <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
+      </div>
+      <p class="signup__msg" id="signup-msg" role="status" aria-live="polite"></p>
+      <p class="flash flash--ok" id="merci">✔ C'est noté ! On te prévient au lancement.</p>
+      <p class="flash flash--err" id="email-invalide">Cette adresse email ne semble pas valide. Vérifie-la et réessaie.</p>
+      <p class="flash flash--err" id="oups">Oups, l'inscription n'a pas marché. Réessaie dans un instant ou écris à contact@bytetuto.com.</p>
+      <p class="signup__count" id="signup-count" hidden><span class="pulse" aria-hidden="true"></span><b id="count-n">0</b> personnes attendent le lancement</p>
+      <p class="signup__legal" id="signup-legal">
+        Un email au lancement, puis la newsletter byteTuto (1 par mois maximum). Désinscription à tout moment.
+        <a href="/confidentialite/">Comment on utilise ton email</a>
+      </p>
+    </form>
 
     <div class="actions">
-      <a class="btn btn--primary" href="mailto:contact@bytetuto.com?subject=Pr%C3%A9viens-moi%20du%20lancement%20de%20byteTuto">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
-        Préviens-moi du lancement
-      </a>
       <a class="btn btn--ghost" href="https://www.youtube.com/@bytetuto" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="4"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>
         YouTube
@@ -297,10 +438,62 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.4 2.6 2.2 4.4 5 4.6"/></svg>
         TikTok
       </a>
+      <a class="btn btn--ghost scroll-hint" href="#decouvrir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        Découvrir
+      </a>
+    </div>
+    </div>
+
+    <div class="more" id="decouvrir">
+      <section class="panel" aria-labelledby="term-title">
+        <h2 class="panel__title" id="term-title"><span class="panel__kicker">01</span> Tape une commande</h2>
+        <p class="panel__lead">Le terminal est vivant : essaie <code>help</code>, <code>tutos</code> ou <code>inscris ton@email.fr</code>.</p>
+        <div class="term" id="term-box">
+          <div class="term__bar" aria-hidden="true"><i></i><i></i><i></i><span>~/bytetuto.com</span></div>
+          <div class="term__body" id="term" role="log" aria-live="polite" aria-label="Sortie du terminal">
+            <!-- rempli par le script ; contenu statique si JS désactivé -->
+            <div class="term__line"><span class="p">$</span> npm run build</div>
+            <div class="term__line"><span class="ok">✔</span> logo · <span class="ok">✔</span> intro vidéo · <span class="sp">▶</span> site…</div>
+          </div>
+          <form class="term__input" id="term-form" hidden>
+            <label class="p" for="term-cmd">$<span class="sr-only"> Commande du terminal</span></label>
+            <input id="term-cmd" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="help">
+          </form>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="teaser-title">
+        <h2 class="panel__title" id="teaser-title"><span class="panel__kicker">02</span> Le teaser</h2>
+        <p class="panel__lead">9 secondes de néon, avec la signature sonore byteTuto. Active le son&nbsp;!</p>
+        <div class="video">
+          <video id="teaser" poster="/media/teaser-poster.webp" width="1280" height="720"
+                 muted loop playsinline preload="metadata" controls
+                 aria-label="Teaser byteTuto : le logo ▶_ s'allume en néon, puis « Coming soon »">
+            <source src="/media/teaser.webm" type="video/webm">
+            <source src="/media/teaser.mp4" type="video/mp4">
+          </video>
+          <div class="video__ctrl" id="teaser-ctrl" hidden>
+            <button class="vbtn" type="button" id="teaser-play" aria-pressed="false">
+              <svg class="i-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+              <svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5v14l12-7z"/></svg>
+              <span class="vbtn__txt">Lecture</span>
+            </button>
+            <button class="vbtn" type="button" id="teaser-sound" aria-pressed="false">
+              <svg class="i-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="m22 9-6 6M16 9l6 6"/></svg>
+              <svg class="i-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+              <span class="vbtn__txt">Activer le son</span>
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
 
     <footer>
-      <span class="mut">$</span> © <span id="year">2026</span> byteTuto · <a href="mailto:contact@bytetuto.com">contact@bytetuto.com</a>
+      <span class="mut">$</span> © <span id="year">2026</span> byteTuto ·
+      <a href="mailto:contact@bytetuto.com">contact@bytetuto.com</a> ·
+      <a href="/mentions-legales/">Mentions légales</a> ·
+      <a href="/confidentialite/">Confidentialité</a>
     </footer>
   </main>
 

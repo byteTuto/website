@@ -8,3 +8,14 @@ services:
       - "8080:80"
     volumes:
       - ./site:/usr/share/nginx/html:ro
+
+  api:
+    build: ./api
+    container_name: bytetuto-dev-api
+    environment:
+      COUNTER_MIN: "3"          # en local, le compteur apparaît dès 3 inscrits
+    volumes:
+      - api-dev-data:/data
+
+volumes:
+  api-dev-data:
