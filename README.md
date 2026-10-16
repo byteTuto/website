@@ -92,7 +92,7 @@ Sur l'EC2, depuis `/opt/bytetuto` :
 
 ```bash
 docker compose exec api python app.py count                    # nombre d'inscrits
-docker compose exec api python app.py export > inscrits.csv    # pour l'email de lancement / l'outil de newsletter
+docker compose exec -T api python app.py export > inscrits.csv    # pour l'email de lancement / l'outil de newsletter
 docker compose exec api python app.py delete toi@exemple.fr    # demande de suppression (RGPD)
 # sauvegarde de la base (volume Docker api-data)
 docker run --rm -v bytetuto_api-data:/data -v "$PWD":/out alpine cp /data/subscribers.db /out/inscrits-$(date +%F).db
