@@ -1,0 +1,15 @@
+# byteTuto
+
+> byteTuto publie des tutos tech courts et concrets en français : code, outils, astuces. Site web, chaîne YouTube et compte TikTok. Signature : « Apprends la tech, un byte à la fois. » Le site est en construction (page coming soon).
+
+Chaque page HTML de bytetuto.com a une version Markdown : ajoute `index.md` à l'URL d'un dossier (ex. https://bytetuto.com/index.md), ou envoie l'en-tête `Accept: text/markdown`.
+
+## Pages
+
+- [Accueil](https://bytetuto.com/index.md): présentation de byteTuto et liens vers YouTube et TikTok.
+
+## Contact
+
+- [Email](mailto:contact@bytetuto.com): contact@bytetuto.com
+- [YouTube](https://www.youtube.com/@bytetuto): tutos longs.
+- [TikTok](https://www.tiktok.com/@bytetuto): tutos courts.

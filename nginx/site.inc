@@ -16,10 +16,26 @@ location ~* \.(?:svg|png|jpg|jpeg|webp|ico|js|css|woff2?)$ {
     try_files $uri =404;
 }
 
-# Pages HTML : toujours revalidées (le coming soon doit changer dès le déploiement)
-location / {
+# Versions Markdown des pages (agents IA) : text/markdown, jamais indexées par Google (doublon du HTML)
+location ~* \.md$ {
+    default_type text/markdown;
+    types { }
     include /etc/nginx/snippets/security-headers.inc;
     add_header Cache-Control "no-cache";
+    add_header X-Robots-Tag "noindex" always;
+    add_header Vary "Accept";
+    try_files $uri =404;
+}
+
+# Pages HTML : toujours revalidées (le coming soon doit changer dès le déploiement)
+location / {
+    # Négociation de contenu : « Accept: text/markdown » sur une page -> son index.md
+    if ($wants_markdown) {
+        rewrite ^(.*)/$ $1/index.md last;
+    }
+    include /etc/nginx/snippets/security-headers.inc;
+    add_header Cache-Control "no-cache";
+    add_header Vary "Accept";
     try_files $uri $uri/ =404;
 }
 
