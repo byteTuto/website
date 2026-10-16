@@ -6,7 +6,7 @@ Le nom s'écrit toujours `byteTuto`. Signature : « Apprends la tech, un byte à
 ## Stack
 - Site statique : `site/` (HTML + CSS inline, JS dans `site/app.js` — la CSP interdit les scripts inline).
 - Serveur : nginx (image `nginx:stable-alpine`), conf dans `nginx/` ; `/api/` relayé vers le service `api/`.
-- Inscriptions : `api/app.py` (Python stdlib + SQLite, volume `api-data`), image `ghcr.io/bytetuto/website-api`. Test : `api/test_api.py`.
+- Inscriptions : `api/app.py` (Python stdlib + SQLite, volume `api-data`), image `ghcr.io/bytetuto/website-api`. Page `/admin/` (`api/admin.py`, HTTPS seulement, mot de passe via `deploy/set-admin-password.sh`). Tests : `api/test_api.py`, `api/test_admin.py`.
 - Pages légales : `site/mentions-legales/`, `site/confidentialite/` — à mettre à jour si on collecte d'autres données ou si le site devient professionnel (SIRET).
 - Teaser : `site/media/teaser.{webm,mp4}` (rendu depuis les scripts vidéo du projet, 1280×720, 9 s).
 - Conteneur : `Dockerfile`, `docker-compose.yml` (prod), `docker-compose.dev.yml` (local, port 8080).
@@ -25,7 +25,7 @@ Le nom s'écrit toujours `byteTuto`. Signature : « Apprends la tech, un byte à
 - Pas de script inline, pas de dépendance externe hors Google Fonts.
 - Toute animation respecte `prefers-reduced-motion`.
 - Textes en français, tutoiement.
-- Ne jamais lire `.env`, `certbot/`, ni les clés SSH.
+- Ne jamais lire `.env`, `certbot/`, ni les clés SSH. Ne jamais écrire de mot de passe en clair (seulement l'empreinte via `set-admin-password.sh`).
 - Lancer le skill `check-site` après une modif de `site/`, `nginx/` ou `Dockerfile`.
 
 ## Toute page du site doit être (contrôlé en CI, bloquant)

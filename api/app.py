@@ -6,7 +6,10 @@ Routes (derrière nginx, préfixe /api/) :
   GET  /api/count       -> {"count": 42, "show": true}   (show = count >= COUNTER_MIN)
   POST /api/subscribe   -> JSON {"email": "...", "website": ""}  ou formulaire HTML classique (sans JS)
 
+  /admin/               -> page admin des inscrits (HTTPS + mot de passe, voir admin.py)
+
 Administration (sur l'EC2) :
+  bash deploy/set-admin-password.sh                                # choisir / changer le mot de passe de /admin/
   docker compose exec api python app.py count
   docker compose exec -T api python app.py export > inscrits.csv
   docker compose exec api python app.py delete toi@exemple.fr     # droit à l'effacement (RGPD)
@@ -15,6 +18,7 @@ Variables : DB_PATH (/data/subscribers.db), COUNTER_MIN (30), RATE_MAX (5), PORT
 Données gardées : email, date d'inscription, version du texte de consentement. Pas d'adresse IP.
 """
 import csv, json, os, re, sqlite3, sys, threading, time
+import admin as admin_page
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
@@ -97,6 +101,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
+        if path == "/admin" or path.startswith("/admin/"):
+            return admin_page.handle(self, "GET", db)
         if path == "/api/health":
             return self._json(200, {"ok": True})
         if path == "/api/count":
@@ -105,6 +111,8 @@ class Handler(BaseHTTPRequestHandler):
         self._json(404, {"ok": False, "error": "not_found"})
 
     def do_POST(self):
+        if self.path == "/admin" or self.path.startswith("/admin/"):
+            return admin_page.handle(self, "POST", db)
         if self.path.split("?")[0] != "/api/subscribe":
             return self._json(404, {"ok": False, "error": "not_found"})
         ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
@@ -162,12 +170,18 @@ def admin(cmd: str, arg: str | None):
             w = csv.writer(sys.stdout)
             w.writerow(["email", "created_at", "consent_version"])
             w.writerows(con.execute("SELECT email, created_at, consent_version FROM subscribers ORDER BY id"))
+    elif cmd == "hash-password":
+        # le mot de passe arrive sur l'entrée standard (jamais en argument : il finirait dans l'historique du shell)
+        pw = sys.stdin.readline().rstrip("\n")
+        if len(pw) < 12:
+            sys.exit("mot de passe trop court (12 caractères minimum)")
+        print(admin_page.hash_password(pw))
     elif cmd == "delete" and arg:
         with db() as con:
             n = con.execute("DELETE FROM subscribers WHERE email = ?", (arg.strip().lower(),)).rowcount
         print("supprimé" if n else "introuvable")
     else:
-        sys.exit("usage : app.py [serve | count | export | delete <email>]")
+        sys.exit("usage : app.py [serve | count | export | delete <email> | hash-password < mot-de-passe]")
 
 
 if __name__ == "__main__":

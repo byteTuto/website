@@ -24,6 +24,9 @@ services:
     restart: unless-stopped
     environment:
       COUNTER_MIN: ${COUNTER_MIN:-30}
+      # page /admin/ : écrits par deploy/set-admin-password.sh dans .env (empreinte du mot de passe, jamais le mot de passe)
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-}
+      ADMIN_SECRET: ${ADMIN_SECRET:-}
     volumes:
       - api-data:/data          # base SQLite des inscrits — à sauvegarder (voir README)
     logging:
