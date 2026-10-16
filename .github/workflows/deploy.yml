@@ -26,14 +26,18 @@ jobs:
         run: python3 scripts/check_seo_agents.py
 
       - name: Build
-        run: docker build -t bytetuto-site:ci .
+        run: |
+          docker build -t bytetuto-site:ci .
+          docker build -t bytetuto-api:ci api
 
       - name: Vérifier la conf nginx
         run: docker run --rm bytetuto-site:ci nginx -t
 
       - name: Test de fumée
         run: |
-          docker run -d --name web -p 8080:80 bytetuto-site:ci
+          docker network create bytetuto
+          docker run -d --name api --network bytetuto --network-alias api -e RATE_MAX=8 bytetuto-api:ci
+          docker run -d --name web --network bytetuto -p 8080:80 bytetuto-site:ci
           for i in $(seq 1 15); do curl -fsS http://localhost:8080/healthz && break; sleep 1; done
           curl -fsS http://localhost:8080/ | grep -q "byteTuto"
           curl -fsS http://localhost:8080/app.js -o /dev/null
@@ -44,7 +48,17 @@ jobs:
           curl -fsS -H "Accept: text/markdown" http://localhost:8080/ | head -1 | grep -q "^---"
           curl -fsS http://localhost:8080/llms.txt | head -1 | grep -q "^# byteTuto"
           curl -fsS http://localhost:8080/sitemap.xml | grep -q "<urlset"
+          curl -fsS http://localhost:8080/mentions-legales/ | grep -q "Hébergeur"
+          curl -fsS http://localhost:8080/confidentialite/ | grep -q "Tes droits"
+          curl -sI http://localhost:8080/media/teaser.mp4 | grep -qi "content-type: video/mp4"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 http://localhost:8080/media/teaser.webm)" = "206"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE http://localhost:8080/api/count)" = "403"
           echo "✔ smoke test OK"
+
+      - name: Inscriptions (API à travers nginx)
+        run: |
+          for i in $(seq 1 15); do curl -fsS http://localhost:8080/api/health && break; sleep 1; done
+          python3 api/test_api.py http://localhost:8080
 
       - name: Responsive (Playwright, 320 → 1440 px)
         run: |
@@ -60,9 +74,13 @@ jobs:
           path: responsive-shots
           if-no-files-found: ignore
 
-      - name: Arrêt du conteneur
+      - name: Journaux en cas d'échec
+        if: failure()
+        run: docker logs web --tail 50 || true; docker logs api --tail 50 || true
+
+      - name: Arrêt des conteneurs
         if: always()
-        run: docker rm -f web || true
+        run: docker rm -f web api || true
 
   # 2. Publication de l'image sur GitHub Container Registry (main uniquement)
   publish:
@@ -74,6 +92,7 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.img.outputs.image }}
+      api_image: ${{ steps.img.outputs.api_image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -83,6 +102,8 @@ jobs:
           name=$(echo "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
           echo "base=$name" >> "$GITHUB_OUTPUT"
           echo "image=$name:${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "api_base=$name-api" >> "$GITHUB_OUTPUT"
+          echo "api_image=$name-api:${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -102,6 +123,18 @@ jobs:
             ${{ steps.img.outputs.image }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Image du service d'inscription
+        uses: docker/build-push-action@v6
+        with:
+          context: api
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ steps.img.outputs.api_base }}:latest
+            ${{ steps.img.outputs.api_image }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
 
   # 3. Déploiement sur EC2 par SSH
   deploy:
@@ -145,6 +178,7 @@ jobs:
         env:
           TARGET: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
           IMAGE: ${{ needs.publish.outputs.image }}
+          API_IMAGE: ${{ needs.publish.outputs.api_image }}
           DOMAIN: ${{ vars.DOMAIN }}
           LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
           GHCR_USER: ${{ github.actor }}
@@ -153,7 +187,7 @@ jobs:
           ssh -i ~/.ssh/id_ec2 "$TARGET" bash -s <<SSH
           set -euo pipefail
           cd $APP_DIR
-          printf 'DOMAIN=%s\nIMAGE=%s\nLETSENCRYPT_EMAIL=%s\n' "$DOMAIN" "$IMAGE" "$LETSENCRYPT_EMAIL" > .env
+          printf 'DOMAIN=%s\nIMAGE=%s\nAPI_IMAGE=%s\nLETSENCRYPT_EMAIL=%s\n' "$DOMAIN" "$IMAGE" "$API_IMAGE" "$LETSENCRYPT_EMAIL" > .env
           chmod 600 .env
           echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
           bash deploy/deploy.sh

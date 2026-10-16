@@ -6,7 +6,13 @@ Chaque page HTML de bytetuto.com a une version Markdown : ajoute `index.md` à l
 
 ## Pages
 
-- [Accueil](https://bytetuto.com/index.md): présentation de byteTuto et liens vers YouTube et TikTok.
+- [Accueil](https://bytetuto.com/index.md): présentation de byteTuto, inscription pour être prévenu du lancement, teaser vidéo, liens YouTube et TikTok.
+- [Mentions légales](https://bytetuto.com/mentions-legales/index.md): éditeur du site, hébergeur, propriété intellectuelle, contact.
+- [Politique de confidentialité](https://bytetuto.com/confidentialite/index.md): données collectées par le formulaire d'inscription, cookies, droits RGPD.
+
+## Inscription
+
+- Être prévenu du lancement : formulaire sur https://bytetuto.com/ ou requête `POST https://bytetuto.com/api/subscribe` avec le JSON `{"email": "…"}` (avec l'accord de la personne concernée).
 
 ## Contact
 
