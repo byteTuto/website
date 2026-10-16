@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # À lancer UNE FOIS sur l'instance EC2 (Amazon Linux 2023 ou Ubuntu 22.04/24.04) :
-#   curl -fsSL https://raw.githubusercontent.com/<owner>/bytetuto-site/main/deploy/ec2-setup.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/byteTuto/website/main/deploy/ec2-setup.sh | sudo bash
 #   (ou scp ce fichier puis : sudo bash ec2-setup.sh)
 # Installe Docker + Compose, prépare /opt/bytetuto et le cron de renouvellement SSL.
 set -euo pipefail

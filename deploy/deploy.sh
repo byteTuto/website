@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lancé sur EC2 par GitHub Actions (ou à la main) depuis /opt/bytetuto.
 # Tire la nouvelle image, redémarre, vérifie /healthz, et revient à l'image précédente si ça échoue.
-#   usage : IMAGE=ghcr.io/owner/bytetuto-site:<sha> bash deploy/deploy.sh
+#   usage : IMAGE=ghcr.io/bytetuto/website:<sha7> bash deploy/deploy.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

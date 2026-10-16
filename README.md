@@ -59,7 +59,7 @@ Optionnel : **Settings → Environments → production** → « Required reviewe
 git push origin main
 ```
 
-Le workflow : **test** (build, `nginx -t`, test de fumée) → **publish** (image `ghcr.io/<owner>/bytetuto-site`, amd64 + arm64) → **deploy** (SSH, `deploy.sh`, vérification `/healthz`). Si le nouveau conteneur ne répond pas, `deploy.sh` revient tout seul à la version précédente.
+Le workflow : **test** (build, `nginx -t`, test de fumée) → **publish** (image `ghcr.io/bytetuto/website`, amd64 + arm64) → **deploy** (SSH, `deploy.sh`, vérification `/healthz`). Si le nouveau conteneur ne répond pas, `deploy.sh` revient tout seul à la version précédente.
 
 Les pull requests ne lancent que les tests.
 

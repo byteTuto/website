@@ -3,7 +3,7 @@ FROM nginx:stable-alpine
 
 LABEL org.opencontainers.image.title="bytetuto-site" \
       org.opencontainers.image.description="byteTuto — page coming soon (nginx)" \
-      org.opencontainers.image.source="https://github.com/bytetuto/bytetuto-site"
+      org.opencontainers.image.source="https://github.com/byteTuto/website"
 
 # Conf nginx
 RUN rm -f /etc/nginx/conf.d/default.conf && mkdir -p /etc/nginx/bytetuto /etc/nginx/snippets /var/www/certbot
