@@ -38,5 +38,6 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
     include /etc/nginx/snippets/ssl.inc;
 
+    include /etc/nginx/snippets/admin.inc;
     include /etc/nginx/snippets/site.inc;
 }
