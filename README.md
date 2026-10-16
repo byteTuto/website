@@ -98,6 +98,19 @@ docker compose exec api python app.py delete toi@exemple.fr    # demande de supp
 docker run --rm -v bytetuto_api-data:/data -v "$PWD":/out alpine cp /data/subscribers.db /out/inscrits-$(date +%F).db
 ```
 
+### Page admin : https://bytetuto.com/admin/
+
+Liste des inscrits, recherche, téléchargement du CSV (s'ouvre dans Excel) et suppression avec confirmation.
+
+- **Ouverte uniquement en HTTPS** : en HTTP seul, `/admin/` répond 404 (le mot de passe ne circule jamais en clair).
+- **Choisir ou changer le mot de passe** (sur l'EC2, dans `/opt/bytetuto`) : `bash deploy/set-admin-password.sh`.
+  Le script demande le mot de passe deux fois et n'écrit dans `.env` que son **empreinte scrypt** (`ADMIN_PASSWORD_HASH`)
+  et la clé qui signe les sessions (`ADMIN_SECRET`). Le mot de passe lui-même n'est stocké nulle part.
+- `bash deploy/set-admin-password.sh --deconnecter-tout` : change aussi la clé, ce qui ferme toutes les sessions ouvertes.
+- Session de 4 h (cookie HttpOnly, Secure, SameSite=Strict), jeton anti-CSRF sur chaque bouton,
+  5 mauvais mots de passe par IP → blocage 15 min. Page non indexée.
+- Les déploiements ne réécrivent plus tout le `.env` : `ADMIN_*` et `COUNTER_MIN` sont conservés.
+
 Le seuil d'affichage du compteur se change avec `COUNTER_MIN=…` dans `.env`, puis `docker compose up -d api`.
 En local, `docker compose -f docker-compose.dev.yml up --build` lance aussi l'API (compteur visible dès 3 inscrits).
 Test de bout en bout : `python3 api/test_api.py http://localhost:8080` (API lancée avec `RATE_MAX=8`, base vide).

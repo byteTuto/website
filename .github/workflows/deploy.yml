@@ -53,12 +53,30 @@ jobs:
           curl -sI http://localhost:8080/media/teaser.mp4 | grep -qi "content-type: video/mp4"
           test "$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 http://localhost:8080/media/teaser.webm)" = "206"
           test "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE http://localhost:8080/api/count)" = "403"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/admin/)" = "404"   # admin fermée sans HTTPS
           echo "✔ smoke test OK"
 
       - name: Inscriptions (API à travers nginx)
         run: |
           for i in $(seq 1 15); do curl -fsS http://localhost:8080/api/health && break; sleep 1; done
           python3 api/test_api.py http://localhost:8080
+
+      - name: HTTPS + page admin (certificat de test)
+        run: |
+          mkdir -p tls/live/bytetuto.test
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=bytetuto.test" \
+            -keyout tls/live/bytetuto.test/privkey.pem -out tls/live/bytetuto.test/fullchain.pem 2>/dev/null
+          chmod -R a+r tls
+          HASH=$(printf 'phrase de passe ci\n' | docker run --rm -i bytetuto-api:ci python app.py hash-password)
+          docker network create bt-https
+          docker run -d --name api-https --network bt-https --network-alias api \
+            -e ADMIN_PASSWORD_HASH="$HASH" -e ADMIN_SECRET="$(openssl rand -hex 32)" bytetuto-api:ci
+          docker run -d --name web-https --network bt-https -p 8443:443 -p 8081:80 \
+            -e DOMAIN=bytetuto.test -v "$PWD/tls:/etc/letsencrypt:ro" bytetuto-site:ci
+          for i in $(seq 1 15); do curl -fsSk https://localhost:8443/healthz >/dev/null 2>&1 && curl -fsSk https://localhost:8443/api/health && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/admin/)" = "301"    # HTTP → HTTPS
+          curl -sk https://localhost:8443/ | grep -q "byteTuto"
+          python3 api/test_admin.py https://localhost:8443 "phrase de passe ci"
 
       - name: Responsive (Playwright, 320 → 1440 px)
         run: |
@@ -76,11 +94,11 @@ jobs:
 
       - name: Journaux en cas d'échec
         if: failure()
-        run: docker logs web --tail 50 || true; docker logs api --tail 50 || true
+        run: for c in web api web-https api-https; do echo "== $c"; docker logs $c --tail 40 || true; done
 
       - name: Arrêt des conteneurs
         if: always()
-        run: docker rm -f web api || true
+        run: docker rm -f web api web-https api-https || true
 
   # 2. Publication de l'image sur GitHub Container Registry (main uniquement)
   publish:
@@ -172,7 +190,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_ec2 "$TARGET" "mkdir -p $APP_DIR/deploy"
           scp -i ~/.ssh/id_ec2 docker-compose.yml "$TARGET:$APP_DIR/"
-          scp -i ~/.ssh/id_ec2 deploy/deploy.sh deploy/init-ssl.sh "$TARGET:$APP_DIR/deploy/"
+          scp -i ~/.ssh/id_ec2 deploy/deploy.sh deploy/init-ssl.sh deploy/set-admin-password.sh "$TARGET:$APP_DIR/deploy/"
 
       - name: Déployer
         env:
@@ -187,7 +205,11 @@ jobs:
           ssh -i ~/.ssh/id_ec2 "$TARGET" bash -s <<SSH
           set -euo pipefail
           cd $APP_DIR
-          printf 'DOMAIN=%s\nIMAGE=%s\nAPI_IMAGE=%s\nLETSENCRYPT_EMAIL=%s\n' "$DOMAIN" "$IMAGE" "$API_IMAGE" "$LETSENCRYPT_EMAIL" > .env
+          # ne réécrit que les clés gérées ici : ADMIN_*, COUNTER_MIN… écrites sur le serveur sont conservées
+          touch .env
+          grep -vE '^(DOMAIN|IMAGE|API_IMAGE|LETSENCRYPT_EMAIL)=' .env > .env.tmp || true
+          printf 'DOMAIN=%s\nIMAGE=%s\nAPI_IMAGE=%s\nLETSENCRYPT_EMAIL=%s\n' "$DOMAIN" "$IMAGE" "$API_IMAGE" "$LETSENCRYPT_EMAIL" >> .env.tmp
+          mv .env.tmp .env
           chmod 600 .env
           echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
           bash deploy/deploy.sh

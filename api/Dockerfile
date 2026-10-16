@@ -7,9 +7,9 @@ LABEL org.opencontainers.image.title="bytetuto-api" \
 
 RUN adduser -D -u 10001 app && mkdir /data && chown app:app /data
 WORKDIR /app
-COPY --chmod=644 app.py /app/app.py
+COPY --chmod=644 app.py admin.py /app/
 USER app
-ENV PYTHONUNBUFFERED=1 DB_PATH=/data/subscribers.db COUNTER_MIN=30 PORT=8000
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 DB_PATH=/data/subscribers.db COUNTER_MIN=30 PORT=8000
 VOLUME /data
 EXPOSE 8000
 
