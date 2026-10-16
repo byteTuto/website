@@ -1,0 +1,9 @@
+.git
+.github
+.claude
+deploy
+certbot
+*.md
+.env
+.env.*
+docker-compose*.yml

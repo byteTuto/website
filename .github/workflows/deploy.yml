@@ -1,0 +1,143 @@
+name: Build & deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 1. Build de l'image + test de fumée (sur chaque push et PR)
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -t bytetuto-site:ci .
+
+      - name: Vérifier la conf nginx
+        run: docker run --rm bytetuto-site:ci nginx -t
+
+      - name: Test de fumée
+        run: |
+          docker run -d --name web -p 8080:80 bytetuto-site:ci
+          for i in $(seq 1 15); do curl -fsS http://localhost:8080/healthz && break; sleep 1; done
+          curl -fsS http://localhost:8080/ | grep -q "byteTuto"
+          curl -fsS http://localhost:8080/app.js -o /dev/null
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nexiste-pas)" = "404"
+          curl -sI http://localhost:8080/ | grep -qi "content-security-policy"
+          echo "✔ smoke test OK"
+          docker rm -f web
+
+  # 2. Publication de l'image sur GitHub Container Registry (main uniquement)
+  publish:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.img.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nom d'image en minuscules
+        id: img
+        run: |
+          name=$(echo "${REGISTRY}/${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
+          echo "base=$name" >> "$GITHUB_OUTPUT"
+          echo "image=$name:${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64   # EC2 Intel/AMD ou Graviton
+          tags: |
+            ${{ steps.img.outputs.base }}:latest
+            ${{ steps.img.outputs.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # 3. Déploiement sur EC2 par SSH
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.DOMAIN }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      APP_DIR: /opt/bytetuto
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clé SSH
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/id_ec2 && chmod 600 ~/.ssh/id_ec2
+          if [ -n "$EC2_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$EC2_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            echo "::warning::EC2_KNOWN_HOSTS absent — empreinte récupérée à la volée (ssh-keyscan)"
+            ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          fi
+
+      - name: Copier les fichiers de déploiement
+        env:
+          TARGET: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i ~/.ssh/id_ec2 "$TARGET" "mkdir -p $APP_DIR/deploy"
+          scp -i ~/.ssh/id_ec2 docker-compose.yml "$TARGET:$APP_DIR/"
+          scp -i ~/.ssh/id_ec2 deploy/deploy.sh deploy/init-ssl.sh "$TARGET:$APP_DIR/deploy/"
+
+      - name: Déployer
+        env:
+          TARGET: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
+          IMAGE: ${{ needs.publish.outputs.image }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          LETSENCRYPT_EMAIL: ${{ vars.LETSENCRYPT_EMAIL }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh -i ~/.ssh/id_ec2 "$TARGET" bash -s <<SSH
+          set -euo pipefail
+          cd $APP_DIR
+          printf 'DOMAIN=%s\nIMAGE=%s\nLETSENCRYPT_EMAIL=%s\n' "$DOMAIN" "$IMAGE" "$LETSENCRYPT_EMAIL" > .env
+          chmod 600 .env
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          bash deploy/deploy.sh
+          docker logout ghcr.io
+          SSH
+
+      - name: Vérifier en ligne
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          curl -fsS --retry 5 --retry-delay 3 "http://$EC2_HOST/healthz"
+          echo "✔ En ligne"

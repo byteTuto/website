@@ -1,0 +1,42 @@
+# Mode HTTPS : activé automatiquement par 40-bytetuto-ssl.sh quand le
+# certificat /etc/letsencrypt/live/${DOMAIN}/fullchain.pem existe.
+server {
+    listen 80 default_server;
+    server_name ${SERVER_NAMES};
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+    location / {
+        return 301 https://${DOMAIN}$request_uri;
+    }
+}
+
+# www -> domaine nu
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name www.${DOMAIN};
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    include /etc/nginx/snippets/ssl.inc;
+    return 301 https://${DOMAIN}$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    include /etc/nginx/snippets/ssl.inc;
+
+    include /etc/nginx/snippets/site.inc;
+}

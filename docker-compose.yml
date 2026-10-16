@@ -1,0 +1,26 @@
+# Production (EC2). Le workflow GitHub Actions fournit IMAGE.
+# En local : docker compose -f docker-compose.dev.yml up
+services:
+  web:
+    image: ${IMAGE:-ghcr.io/bytetuto/bytetuto-site:latest}
+    container_name: bytetuto-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-}
+    volumes:
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # Utilisé à la demande par deploy/init-ssl.sh et le cron de renouvellement
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ["certbot"]
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt

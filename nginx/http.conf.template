@@ -1,0 +1,14 @@
+# Mode HTTP seul : utilisé tant qu'aucun certificat Let's Encrypt n'existe
+# (premier démarrage, ou en local).
+server {
+    listen 80 default_server;
+    server_name ${SERVER_NAMES};
+
+    # Défi ACME pour certbot (webroot)
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+
+    include /etc/nginx/snippets/site.inc;
+}

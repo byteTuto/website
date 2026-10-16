@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+certbot/
+.claude/settings.local.json
+.DS_Store
+node_modules/
+*.log

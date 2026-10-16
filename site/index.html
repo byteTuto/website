@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>byteTuto — Bientôt en ligne</title>
+  <meta name="description" content="byteTuto : des tutos tech courts et concrets — code, outils, astuces. Le site arrive bientôt. Apprends la tech, un byte à la fois.">
+  <meta name="theme-color" content="#0E1116">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://bytetuto.com/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="byteTuto">
+  <meta property="og:title" content="byteTuto — Bientôt en ligne">
+  <meta property="og:description" content="Apprends la tech, un byte à la fois. Tutos courts sur YouTube et TikTok, site en construction.">
+  <meta property="og:url" content="https://bytetuto.com/">
+  <meta property="og:image" content="https://bytetuto.com/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ---------- Tokens byteTuto (design-system-tokens.json, thème sombre) ---------- */
+    :root {
+      --surface: #0E1116;
+      --surface-raised: #171B22;
+      --ink: #F2F1EC;
+      --ink-muted: #A3A8B3;
+      --line: #2A2F38;
+      --byte: #B8F03C;
+      --byte-tint: #24300F;
+      --on-byte: #0E1116;
+      --spark: #FF6B33;
+      --tile: #1E232C;
+
+      --font-display: "Space Grotesk", system-ui, sans-serif;
+      --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 24px;
+      color-scheme: dark;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--surface);
+      color: var(--ink);
+      font: 400 16px/26px var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ---------- Fond animé ---------- */
+    #bg {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      display: block;
+      z-index: 0;
+    }
+    .vignette {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      background:
+        radial-gradient(ellipse 46% 42% at 50% 50%, rgba(14,17,22,.82), rgba(14,17,22,0) 100%),
+        radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,.55) 100%);
+    }
+    /* blocs qui débordent des bords, comme sur la bannière YouTube */
+    .block { position: fixed; z-index: 1; pointer-events: none; }
+    .block--byte  { left: -40px; bottom: -40px; width: min(34vw, 360px); height: min(16vw, 170px); background: var(--byte); border-radius: var(--radius-lg); animation: drift 14s ease-in-out infinite; }
+    .block--spark { right: -30px; top: -30px; width: min(16vw, 170px); height: min(12vw, 120px); background: var(--spark); border-radius: var(--radius-lg); animation: drift 17s ease-in-out infinite reverse; }
+    .block--tile  { right: -40px; bottom: -40px; width: min(26vw, 280px); height: min(18vw, 190px); background: var(--tile); border-radius: var(--radius-lg); animation: drift 20s ease-in-out infinite; }
+    @keyframes drift { 50% { transform: translate(14px, -10px); } }
+
+    /* ---------- Contenu ---------- */
+    main {
+      position: relative; z-index: 2;
+      min-height: 100svh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 48px 16px 32px;
+      text-align: center;
+    }
+
+    .logo { width: min(420px, 82vw); height: auto; margin-bottom: 40px; overflow: visible; }
+    .logo .tile { transform-box: fill-box; transform-origin: center; animation: pop .6s cubic-bezier(.34,1.56,.64,1) .15s both; }
+    .logo .glyph-play { transform-box: fill-box; transform-origin: center; animation: pop .45s cubic-bezier(.34,1.56,.64,1) .55s both; }
+    .logo .glyph-cursor { animation: blink 1s steps(1) 1.1s infinite; opacity: 0; }
+    .logo .w path {
+      fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 1 1; stroke-dashoffset: 1;
+      animation: draw .55s cubic-bezier(.33,1,.68,1) forwards;
+    }
+    .logo .w-byte path { stroke: var(--ink); }
+    .logo .w-tuto path { stroke: var(--byte); }
+    .logo .tile-glow { filter: drop-shadow(0 0 22px rgba(184,240,60,.35)); }
+    @keyframes pop  { from { transform: scale(0); } to { transform: scale(1); } }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } }
+
+    .label {
+      display: inline-flex; align-items: center; gap: 8px;
+      font: 600 12px/16px var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
+      color: var(--byte);
+      background: var(--byte-tint);
+      border: 1px solid rgba(184,240,60,.25);
+      padding: 6px 12px; border-radius: 999px;
+      margin-bottom: 24px;
+      opacity: 0; animation: rise .6s ease 1.4s forwards;
+    }
+    .label .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--spark); box-shadow: 0 0 0 0 rgba(255,107,51,.6); animation: ping 1.8s ease-out infinite; }
+    @keyframes ping { 70% { box-shadow: 0 0 0 8px rgba(255,107,51,0); } 100% { box-shadow: 0 0 0 0 rgba(255,107,51,0); } }
+
+    h1 {
+      font: 700 clamp(44px, 9vw, 96px)/1 var(--font-display);
+      letter-spacing: -0.03em;
+      margin: 0 0 20px;
+      opacity: 0; animation: rise .7s ease 1.55s forwards;
+    }
+    h1 .accent { color: var(--byte); text-shadow: 0 0 28px rgba(184,240,60,.35); }
+    h1 .caret {
+      display: inline-block; width: .5em; height: .1em; margin-left: .06em;
+      background: var(--byte); border-radius: .05em; vertical-align: baseline;
+      animation: blink 1s steps(1) infinite;
+    }
+
+    .lead {
+      max-width: 560px; margin: 0 auto 32px;
+      color: var(--ink-muted); font-size: 18px; line-height: 28px;
+      opacity: 0; animation: rise .7s ease 1.7s forwards;
+    }
+    .lead strong { color: var(--ink); font-weight: 600; }
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+    /* ---------- Terminal ---------- */
+    .term {
+      width: min(520px, 100%);
+      text-align: left;
+      background: rgba(23,27,34,.86);
+      backdrop-filter: blur(6px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 32px;
+      opacity: 0; animation: rise .7s ease 1.85s forwards;
+    }
+    .term__bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    .term__bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+    .term__bar span { margin-left: auto; font: 500 12px/16px var(--font-mono); color: var(--ink-muted); }
+    .term__body { padding: 14px 16px 16px; font: 500 14px/22px var(--font-mono); min-height: 150px; }
+    .term__body .p { color: var(--byte); }
+    .term__body .ok { color: var(--byte); }
+    .term__body .mut { color: var(--ink-muted); }
+    .term__body .sp { color: var(--spark); }
+    .term__line { white-space: pre-wrap; word-break: break-word; }
+    .term__cursor { display: inline-block; width: 9px; height: 3px; background: var(--byte); margin-left: 2px; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+    .bar { display: inline-block; width: 170px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; vertical-align: 1px; margin-right: 8px; }
+    .bar > b { display: block; height: 100%; width: 0; background: var(--byte); border-radius: 4px; transition: width .25s linear; }
+
+    /* ---------- Actions ---------- */
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 40px; opacity: 0; animation: rise .7s ease 2s forwards; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      font: 600 15px/20px var(--font-sans);
+      padding: 12px 18px; border-radius: var(--radius-md);
+      text-decoration: none; transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:focus-visible { outline: 2px solid var(--byte); outline-offset: 3px; }
+    .btn--primary { background: var(--byte); color: var(--on-byte); }
+    .btn--ghost { color: var(--ink); border: 1px solid var(--line); background: rgba(14,17,22,.6); }
+    .btn--ghost:hover { border-color: var(--byte); }
+    .btn svg { width: 18px; height: 18px; flex: none; }
+
+    footer {
+      font: 500 12px/18px var(--font-mono); color: var(--ink-muted);
+      opacity: 0; animation: rise .7s ease 2.1s forwards;
+    }
+    footer a { color: var(--byte); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    @media (max-width: 520px) {
+      .vignette { background: radial-gradient(ellipse 90% 50% at 50% 50%, rgba(14,17,22,.85), rgba(14,17,22,0) 100%), radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,.55) 100%); }
+      .lead { font-size: 16px; line-height: 26px; }
+      .bar { width: 110px; }
+      .block--byte { opacity: .8; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition: none !important; }
+      .logo .glyph-cursor { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <div class="block block--byte" aria-hidden="true"></div>
+  <div class="block block--spark" aria-hidden="true"></div>
+  <div class="block block--tile" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <main>
+    <!-- Logo byteTuto (symbole ▶_ + logotype monoline, version fond sombre) -->
+    <svg class="logo" viewBox="-6 -22 485 116" role="img" aria-labelledby="logo-title">
+      <title id="logo-title">byteTuto</title>
+      <g transform="translate(0 -16) scale(.76667)">
+        <g class="tile-glow">
+          <rect class="tile" width="120" height="120" rx="28" fill="#B8F03C"/>
+        </g>
+        <path class="glyph-play" d="M30 34L30 86L70 60Z" fill="#0E1116" stroke="#0E1116" stroke-width="8" stroke-linejoin="round"/>
+        <rect class="glyph-cursor" x="74" y="80" width="22" height="9" rx="4.5" fill="#0E1116"/>
+      </g>
+      <g class="w w-byte">
+        <path pathLength="1" style="animation-delay:.80s" d="M122.5 4.5V55.5"/>
+        <path pathLength="1" style="animation-delay:.80s" d="M138 24.5A15.5 15.5 0 1 1 138 55.5A15.5 15.5 0 1 1 138 24.5"/>
+        <path pathLength="1" style="animation-delay:.89s" d="M169.5 24.5V40A15.5 15.5 0 0 0 200.5 40"/>
+        <path pathLength="1" style="animation-delay:.89s" d="M200.5 24.5V68Q200.5 82.5 185 82.5H173.5"/>
+        <path pathLength="1" style="animation-delay:.98s" d="M224 6V47.5A8 8 0 0 0 232 55.5H238"/>
+        <path pathLength="1" style="animation-delay:.98s" d="M216.5 24.5H238"/>
+        <path pathLength="1" style="animation-delay:1.07s" d="M254 40H285A15.5 15.5 0 1 0 280.46 50.96"/>
+      </g>
+      <g class="w w-tuto">
+        <path pathLength="1" style="animation-delay:1.16s" d="M302 4.5H337"/>
+        <path pathLength="1" style="animation-delay:1.16s" d="M319.5 4.5V55.5"/>
+        <path pathLength="1" style="animation-delay:1.25s" d="M353 24.5V40A15.5 15.5 0 0 0 384 40"/>
+        <path pathLength="1" style="animation-delay:1.25s" d="M384 24.5V55.5"/>
+        <path pathLength="1" style="animation-delay:1.34s" d="M407.5 6V47.5A8 8 0 0 0 415.5 55.5H421.5"/>
+        <path pathLength="1" style="animation-delay:1.34s" d="M400 24.5H421.5"/>
+        <path pathLength="1" style="animation-delay:1.43s" d="M453 24.5A15.5 15.5 0 1 1 453 55.5A15.5 15.5 0 1 1 453 24.5"/>
+      </g>
+    </svg>
+
+    <span class="label"><span class="dot" aria-hidden="true"></span>Site en construction</span>
+
+    <h1>Coming <span class="accent">soon</span><span class="caret" aria-hidden="true"></span></h1>
+
+    <p class="lead">
+      Des tutos tech <strong>courts et concrets</strong> — code, outils, astuces.
+      Le site arrive, <strong>un byte à la fois</strong>. En attendant, retrouve-nous sur YouTube et TikTok.
+    </p>
+
+    <section class="term" aria-label="Avancement du site">
+      <div class="term__bar" aria-hidden="true"><i></i><i></i><i></i><span>~/bytetuto.com</span></div>
+      <div class="term__body" id="term" aria-live="off">
+        <!-- rempli par le script ; contenu statique si JS désactivé -->
+        <div class="term__line"><span class="p">$</span> npm run build</div>
+        <div class="term__line"><span class="ok">✔</span> logo · <span class="ok">✔</span> intro vidéo · <span class="sp">▶</span> site…</div>
+      </div>
+    </section>
+
+    <div class="actions">
+      <a class="btn btn--primary" href="mailto:contact@bytetuto.com?subject=Pr%C3%A9viens-moi%20du%20lancement%20de%20byteTuto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+        Préviens-moi du lancement
+      </a>
+      <a class="btn btn--ghost" href="https://www.youtube.com/@bytetuto" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="4"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>
+        YouTube
+      </a>
+      <a class="btn btn--ghost" href="https://www.tiktok.com/@bytetuto" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 3c.4 2.6 2.2 4.4 5 4.6"/></svg>
+        TikTok
+      </a>
+    </div>
+
+    <footer>
+      <span class="mut">$</span> © <span id="year">2026</span> byteTuto · <a href="mailto:contact@bytetuto.com">contact@bytetuto.com</a>
+    </footer>
+  </main>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

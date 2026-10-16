@@ -1,0 +1,10 @@
+# Dev local : http://localhost:8080 — le dossier site/ est monté en direct
+# (modifie index.html, rafraîchis la page, pas besoin de rebuild).
+services:
+  web:
+    build: .
+    container_name: bytetuto-dev
+    ports:
+      - "8080:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
