@@ -30,8 +30,10 @@ mv .env.tmp .env && chmod 600 .env
 
 docker compose up -d api >/dev/null
 echo "✔ Mot de passe enregistré (empreinte seulement) et service api redémarré."
-if [ -n "$(ls certbot/conf/live 2>/dev/null)" ]; then
-  echo "→ Connecte-toi sur https://${DOMAIN:-$(grep -E '^DOMAIN=' .env | cut -d= -f2-)}/admin/"
+# On teste le HTTPS en vrai (le dossier certbot/conf/live appartient à root : on ne peut pas s'y fier)
+DOMAIN=${DOMAIN:-$(grep -E '^DOMAIN=' .env | cut -d= -f2-)}
+if [ -n "$DOMAIN" ] && curl -fsS -o /dev/null --max-time 5 "https://$DOMAIN/healthz"; then
+  echo "→ Connecte-toi sur https://$DOMAIN/admin/"
 else
-  echo "! HTTPS pas encore activé : /admin/ restera fermée tant que deploy/init-ssl.sh n'a pas été lancé."
+  echo "! https://${DOMAIN:-<domaine>}/ ne répond pas : /admin/ reste fermée tant que le HTTPS n'est pas actif (deploy/init-ssl.sh)."
 fi
