@@ -1,0 +1,16 @@
+# Site supplémentaire ${SITE_HOST} — mode HTTP seul (pas encore de certificat).
+# Généré par 40-bytetuto-ssl.sh pour chaque entrée de EXTRA_SITES.
+# Obtenir le certificat : bash deploy/init-ssl.sh ${SITE_HOST}
+server {
+    listen 80;
+    server_name ${SITE_HOST};
+
+    # Défi ACME pour certbot (même dossier que le site principal)
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+
+    set $site_upstream ${SITE_UPSTREAM};
+    include /etc/nginx/snippets/extra-site.inc;
+}

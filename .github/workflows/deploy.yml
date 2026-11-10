@@ -31,7 +31,9 @@ jobs:
           docker build -t bytetuto-api:ci api
 
       - name: Vérifier la conf nginx
-        run: docker run --rm bytetuto-site:ci nginx -t
+        run: |
+          docker run --rm bytetuto-site:ci nginx -t
+          docker run --rm -e EXTRA_SITES="dashboard.bytetuto.test=http://dash:8080 invalide=ftp://x" bytetuto-site:ci nginx -t
 
       - name: Test de fumée
         run: |
@@ -63,20 +65,40 @@ jobs:
 
       - name: HTTPS + page admin (certificat de test)
         run: |
-          mkdir -p tls/live/bytetuto.test
-          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=bytetuto.test" \
-            -keyout tls/live/bytetuto.test/privkey.pem -out tls/live/bytetuto.test/fullchain.pem 2>/dev/null
+          for h in bytetuto.test dashboard.bytetuto.test; do
+            mkdir -p tls/live/$h
+            openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$h" \
+              -keyout tls/live/$h/privkey.pem -out tls/live/$h/fullchain.pem 2>/dev/null
+          done
           chmod -R a+r tls
           HASH=$(printf 'phrase de passe ci\n' | docker run --rm -i bytetuto-api:ci python app.py hash-password)
           docker network create bt-https
           docker run -d --name api-https --network bt-https --network-alias api \
             -e ADMIN_PASSWORD_HASH="$HASH" -e ADMIN_SECRET="$(openssl rand -hex 32)" bytetuto-api:ci
+          # faux « dashboard » (autre dépôt) sur le même réseau, joint via EXTRA_SITES
+          docker run -d --name dash --network bt-https --network-alias dash bytetuto-api:ci python -m http.server 8080
           docker run -d --name web-https --network bt-https -p 8443:443 -p 8081:80 \
-            -e DOMAIN=bytetuto.test -v "$PWD/tls:/etc/letsencrypt:ro" bytetuto-site:ci
+            -e DOMAIN=bytetuto.test -e EXTRA_SITES="dashboard.bytetuto.test=http://dash:8080" \
+            -v "$PWD/tls:/etc/letsencrypt:ro" bytetuto-site:ci
           for i in $(seq 1 15); do curl -fsSk https://localhost:8443/healthz >/dev/null 2>&1 && curl -fsSk https://localhost:8443/api/health && break; sleep 1; done
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/admin/)" = "301"    # HTTP → HTTPS
           curl -sk https://localhost:8443/ | grep -q "byteTuto"
           python3 api/test_admin.py https://localhost:8443 "phrase de passe ci"
+
+      - name: Sous-domaine supplémentaire (EXTRA_SITES)
+        run: |
+          D="--resolve dashboard.bytetuto.test:8443:127.0.0.1"
+          for i in $(seq 1 15); do test "$(curl -sk $D -o /dev/null -w '%{http_code}' https://dashboard.bytetuto.test:8443/)" = "200" && break; sleep 1; done
+          test "$(curl -sk $D -o /dev/null -w '%{http_code}' https://dashboard.bytetuto.test:8443/)" = "200"
+          echo | openssl s_client -connect 127.0.0.1:8443 -servername dashboard.bytetuto.test 2>/dev/null | grep -q "CN *= *dashboard.bytetuto.test"
+          curl -skI $D https://dashboard.bytetuto.test:8443/ | grep -qi "strict-transport-security"
+          test "$(curl -s -o /dev/null -w '%{redirect_url}' -H 'Host: dashboard.bytetuto.test' http://localhost:8081/x)" = "https://dashboard.bytetuto.test/x"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: dashboard.bytetuto.test' http://localhost:8081/.well-known/acme-challenge/x)" = "404"
+          curl -sk https://localhost:8443/ | grep -q "byteTuto"        # le site principal n'est pas touché
+          docker stop dash
+          test "$(curl -sk $D -o /dev/null -w '%{http_code}' https://dashboard.bytetuto.test:8443/)" = "503"
+          curl -fsSk https://localhost:8443/healthz                      # dashboard arrêté : bytetuto.com reste en ligne
+          echo "✔ sous-domaine OK"
 
       - name: Responsive (Playwright, 320 → 1440 px)
         run: |
@@ -94,11 +116,11 @@ jobs:
 
       - name: Journaux en cas d'échec
         if: failure()
-        run: for c in web api web-https api-https; do echo "== $c"; docker logs $c --tail 40 || true; done
+        run: for c in web api web-https api-https dash; do echo "== $c"; docker logs $c --tail 40 || true; done
 
       - name: Arrêt des conteneurs
         if: always()
-        run: docker rm -f web api web-https api-https || true
+        run: docker rm -f web api web-https api-https dash || true
 
   # 2. Publication de l'image sur GitHub Container Registry (main uniquement)
   publish:

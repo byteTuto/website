@@ -1,0 +1,28 @@
+# Site supplémentaire ${SITE_HOST} — mode HTTPS (certificat trouvé).
+# Généré par 40-bytetuto-ssl.sh pour chaque entrée de EXTRA_SITES.
+# Certificat séparé de celui de bytetuto.com : /etc/letsencrypt/live/${SITE_HOST}/
+server {
+    listen 80;
+    server_name ${SITE_HOST};
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        default_type text/plain;
+    }
+    location / {
+        return 301 https://${SITE_HOST}$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${SITE_HOST};
+
+    ssl_certificate     /etc/letsencrypt/live/${SITE_HOST}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SITE_HOST}/privkey.pem;
+    include /etc/nginx/snippets/ssl.inc;
+
+    set $site_upstream ${SITE_UPSTREAM};
+    include /etc/nginx/snippets/extra-site.inc;
+}
