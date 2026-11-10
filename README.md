@@ -115,6 +115,48 @@ Le seuil d'affichage du compteur se change avec `COUNTER_MIN=…` dans `.env`, p
 En local, `docker compose -f docker-compose.dev.yml up --build` lance aussi l'API (compteur visible dès 3 inscrits).
 Test de bout en bout : `python3 api/test_api.py http://localhost:8080` (API lancée avec `RATE_MAX=8`, base vide).
 
+## 7. Ajouter un autre site sur l'EC2 (ex. dashboard.bytetuto.com)
+
+Chaque site supplémentaire a **son propre dépôt** et son propre conteneur. Le nginx de ce dépôt reste le seul
+à écouter sur 80/443 : il reconnaît le sous-domaine et relaie vers le conteneur, sur le réseau Docker partagé
+`bytetuto-sites`. L'API des inscrits n'est pas sur ce réseau, donc les autres sites ne peuvent pas la joindre.
+
+```
+visiteur ──▶ nginx (bytetuto-web, 80/443) ──┬──▶ site byteTuto (même conteneur)
+                                            └──▶ bytetuto-dashboard:8080 (autre dépôt)
+```
+
+**Déclarer le site** : variable `EXTRA_SITES` du service `web` dans `docker-compose.yml`
+(déjà réglée sur `dashboard.bytetuto.com=http://bytetuto-dashboard:8080`). Plusieurs sites : entrées séparées par des espaces.
+Pour tout désactiver sans modifier le dépôt : `EXTRA_SITES=` dans le `.env` de l'EC2, puis `docker compose up -d web`.
+
+**Mise en ligne, une fois :**
+1. DNS : `A dashboard.bytetuto.com` → la même IP élastique.
+2. Déployer ce dépôt (push sur `main`) : crée le réseau `bytetuto-sites` et le bloc nginx du sous-domaine (en HTTP).
+3. Sur l'EC2 : `STAGING=1 bash deploy/init-ssl.sh dashboard.bytetuto.com` (répétition), puis
+   `bash deploy/init-ssl.sh dashboard.bytetuto.com`. C'est un **certificat séparé** : celui de bytetuto.com n'est pas touché.
+   Le cron existant renouvelle tous les certificats.
+4. Déployer le dashboard depuis son dépôt (dans son propre dossier, ex. `/opt/dashboard`), avec un `docker-compose.yml` de ce type :
+
+```yaml
+services:
+  dashboard:
+    image: ghcr.io/bytetuto/dashboard:latest
+    container_name: bytetuto-dashboard   # nom utilisé dans EXTRA_SITES
+    restart: unless-stopped
+    expose: ["8080"]                     # pas de « ports: » : seul nginx le joint
+    networks: [sites]
+
+networks:
+  sites:
+    name: bytetuto-sites
+    external: true
+```
+
+Tant que le conteneur du dashboard n'est pas lancé, `dashboard.bytetuto.com` répond 503 (« site momentanément indisponible »),
+et bytetuto.com reste en ligne. nginx transmet `X-Forwarded-Proto`, `X-Real-IP` et les WebSocket. Les en-têtes CSP et anti-iframe
+sont laissés au dashboard lui-même. Taille maximale d'un envoi : 10 Mo (`nginx/extra-site.inc`).
+
 ## À personnaliser
 
 - Liens YouTube / TikTok dans `site/index.html` (`@bytetuto` par défaut).

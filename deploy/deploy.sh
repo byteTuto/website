@@ -15,6 +15,8 @@ PREV_API=$(cat .last_api_image 2>/dev/null || true)
 echo "==> Déploiement de $IMAGE + $API_IMAGE (précédentes : ${PREV:-aucune} / ${PREV_API:-aucune})"
 
 export IMAGE API_IMAGE
+# Réseau partagé avec les autres sites (dashboard…), déclaré « external » dans docker-compose.yml
+docker network inspect bytetuto-sites >/dev/null 2>&1 || docker network create bytetuto-sites >/dev/null
 docker compose pull web api
 docker compose up -d --remove-orphans web api
 
