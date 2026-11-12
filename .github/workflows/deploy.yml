@@ -33,7 +33,7 @@ jobs:
       - name: Vérifier la conf nginx
         run: |
           docker run --rm bytetuto-site:ci nginx -t
-          docker run --rm -e EXTRA_SITES="dashboard.bytetuto.test=http://dash:8080 invalide=ftp://x" bytetuto-site:ci nginx -t
+          docker run --rm -e EXTRA_SITES="dashboard.bytetuto.test=http://dash:8080 synko.bytetuto.test=http://synko:8080 invalide=ftp://x" bytetuto-site:ci nginx -t
 
       - name: Test de fumée
         run: |
@@ -65,7 +65,7 @@ jobs:
 
       - name: HTTPS + page admin (certificat de test)
         run: |
-          for h in bytetuto.test dashboard.bytetuto.test; do
+          for h in bytetuto.test dashboard.bytetuto.test synko.bytetuto.test; do
             mkdir -p tls/live/$h
             openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$h" \
               -keyout tls/live/$h/privkey.pem -out tls/live/$h/fullchain.pem 2>/dev/null
@@ -75,10 +75,11 @@ jobs:
           docker network create bt-https
           docker run -d --name api-https --network bt-https --network-alias api \
             -e ADMIN_PASSWORD_HASH="$HASH" -e ADMIN_SECRET="$(openssl rand -hex 32)" bytetuto-api:ci
-          # faux « dashboard » (autre dépôt) sur le même réseau, joint via EXTRA_SITES
+          # faux « dashboard » et faux « synko » (autres dépôts) sur le même réseau, joints via EXTRA_SITES
           docker run -d --name dash --network bt-https --network-alias dash bytetuto-api:ci python -m http.server 8080
+          docker run -d --name synko --network bt-https --network-alias synko bytetuto-api:ci python -m http.server 8080
           docker run -d --name web-https --network bt-https -p 8443:443 -p 8081:80 \
-            -e DOMAIN=bytetuto.test -e EXTRA_SITES="dashboard.bytetuto.test=http://dash:8080" \
+            -e DOMAIN=bytetuto.test -e EXTRA_SITES="dashboard.bytetuto.test=http://dash:8080 synko.bytetuto.test=http://synko:8080" \
             -v "$PWD/tls:/etc/letsencrypt:ro" bytetuto-site:ci
           for i in $(seq 1 15); do curl -fsSk https://localhost:8443/healthz >/dev/null 2>&1 && curl -fsSk https://localhost:8443/api/health && break; sleep 1; done
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/admin/)" = "301"    # HTTP → HTTPS
@@ -95,10 +96,18 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{redirect_url}' -H 'Host: dashboard.bytetuto.test' http://localhost:8081/x)" = "https://dashboard.bytetuto.test/x"
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: dashboard.bytetuto.test' http://localhost:8081/.well-known/acme-challenge/x)" = "404"
           curl -sk https://localhost:8443/ | grep -q "byteTuto"        # le site principal n'est pas touché
+          S="--resolve synko.bytetuto.test:8443:127.0.0.1"
+          test "$(curl -sk $S -o /dev/null -w '%{http_code}' https://synko.bytetuto.test:8443/)" = "200"
+          echo | openssl s_client -connect 127.0.0.1:8443 -servername synko.bytetuto.test 2>/dev/null | grep -q "CN *= *synko.bytetuto.test"
+          test "$(curl -s -o /dev/null -w '%{redirect_url}' -H 'Host: synko.bytetuto.test' http://localhost:8081/x)" = "https://synko.bytetuto.test/x"
           docker stop dash
           test "$(curl -sk $D -o /dev/null -w '%{http_code}' https://dashboard.bytetuto.test:8443/)" = "503"
+          test "$(curl -sk $S -o /dev/null -w '%{http_code}' https://synko.bytetuto.test:8443/)" = "200"   # dashboard arrêté : synko reste en ligne
           curl -fsSk https://localhost:8443/healthz                      # dashboard arrêté : bytetuto.com reste en ligne
-          echo "✔ sous-domaine OK"
+          docker stop synko
+          test "$(curl -sk $S -o /dev/null -w '%{http_code}' https://synko.bytetuto.test:8443/)" = "503"
+          curl -fsSk https://localhost:8443/healthz
+          echo "✔ sous-domaines OK"
 
       - name: Responsive (Playwright, 320 → 1440 px)
         run: |
@@ -120,7 +129,7 @@ jobs:
 
       - name: Arrêt des conteneurs
         if: always()
-        run: docker rm -f web api web-https api-https dash || true
+        run: docker rm -f web api web-https api-https dash synko || true
 
   # 2. Publication de l'image sur GitHub Container Registry (main uniquement)
   publish:

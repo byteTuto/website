@@ -12,7 +12,7 @@ Le nom s'écrit toujours `byteTuto`. Signature : « Apprends la tech, un byte à
 - Conteneur : `Dockerfile`, `docker-compose.yml` (prod), `docker-compose.dev.yml` (local, port 8080).
 - CI/CD : `.github/workflows/deploy.yml` → GHCR → EC2 par SSH (`deploy/deploy.sh`).
 - HTTPS : Let's Encrypt via certbot (`deploy/init-ssl.sh`), renouvellement par cron.
-- Autres sites (ex. dashboard.bytetuto.com) : autre dépôt, autre conteneur sur le réseau Docker `bytetuto-sites` ; ce nginx relaie selon `EXTRA_SITES` (`nginx/extra-*.conf.template`, `nginx/extra-site.inc`). Certificat séparé : `deploy/init-ssl.sh <sous-domaine>`. Voir README §7.
+- Autres sites (dashboard.bytetuto.com, synko.bytetuto.com) : autre dépôt, autre conteneur sur le réseau Docker `bytetuto-sites` ; ce nginx relaie selon `EXTRA_SITES` (`nginx/extra-*.conf.template`, `nginx/extra-site.inc`). Certificat séparé : `deploy/init-ssl.sh <sous-domaine>`. Voir README §7.
 
 ## Skills du projet (`.claude/skills/`)
 - `bytetuto-brand` : couleurs, typos, logo, ton — à suivre pour toute modif visuelle.

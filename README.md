@@ -115,7 +115,7 @@ Le seuil d'affichage du compteur se change avec `COUNTER_MIN=…` dans `.env`, p
 En local, `docker compose -f docker-compose.dev.yml up --build` lance aussi l'API (compteur visible dès 3 inscrits).
 Test de bout en bout : `python3 api/test_api.py http://localhost:8080` (API lancée avec `RATE_MAX=8`, base vide).
 
-## 7. Ajouter un autre site sur l'EC2 (ex. dashboard.bytetuto.com)
+## 7. Ajouter un autre site sur l'EC2 (dashboard.bytetuto.com, synko.bytetuto.com)
 
 Chaque site supplémentaire a **son propre dépôt** et son propre conteneur. Le nginx de ce dépôt reste le seul
 à écouter sur 80/443 : il reconnaît le sous-domaine et relaie vers le conteneur, sur le réseau Docker partagé
@@ -123,26 +123,33 @@ Chaque site supplémentaire a **son propre dépôt** et son propre conteneur. Le
 
 ```
 visiteur ──▶ nginx (bytetuto-web, 80/443) ──┬──▶ site byteTuto (même conteneur)
-                                            └──▶ bytetuto-dashboard:8080 (autre dépôt)
+                                            ├──▶ bytetuto-dashboard:8080 (dépôt dashboard)
+                                            └──▶ bytetuto-synko:8080     (dépôt synko)
 ```
 
-**Déclarer le site** : variable `EXTRA_SITES` du service `web` dans `docker-compose.yml`
-(déjà réglée sur `dashboard.bytetuto.com=http://bytetuto-dashboard:8080`). Plusieurs sites : entrées séparées par des espaces.
-Pour tout désactiver sans modifier le dépôt : `EXTRA_SITES=` dans le `.env` de l'EC2, puis `docker compose up -d web`.
+| Sous-domaine | Dépôt | Conteneur | Dossier sur l'EC2 |
+| --- | --- | --- | --- |
+| dashboard.bytetuto.com | [byteTuto/dashboard](https://github.com/byteTuto/dashboard) | `bytetuto-dashboard:8080` | `/opt/dashboard` |
+| synko.bytetuto.com | [byteTuto/synko](https://github.com/byteTuto/synko) | `bytetuto-synko:8080` | `/opt/synko` |
 
-**Mise en ligne, une fois :**
-1. DNS : `A dashboard.bytetuto.com` → la même IP élastique.
+**Déclarer le site** : variable `EXTRA_SITES` du service `web` dans `docker-compose.yml`
+(déjà réglée sur les deux sites ci-dessus). Plusieurs sites : entrées `hote=http://conteneur:port` séparées par des espaces.
+Pour tout désactiver sans modifier le dépôt : `EXTRA_SITES=` dans le `.env` de l'EC2, puis `docker compose up -d web`.
+⚠ Si `EXTRA_SITES` est défini dans le `.env` de l'EC2, c'est lui qui compte : y ajouter le nouveau site.
+
+**Mise en ligne d'un nouveau sous-domaine, une fois (ex. synko) :**
+1. DNS : `A synko.bytetuto.com` → la même IP élastique.
 2. Déployer ce dépôt (push sur `main`) : crée le réseau `bytetuto-sites` et le bloc nginx du sous-domaine (en HTTP).
-3. Sur l'EC2 : `STAGING=1 bash deploy/init-ssl.sh dashboard.bytetuto.com` (répétition), puis
-   `bash deploy/init-ssl.sh dashboard.bytetuto.com`. C'est un **certificat séparé** : celui de bytetuto.com n'est pas touché.
+3. Sur l'EC2, dans `/opt/bytetuto` : `STAGING=1 bash deploy/init-ssl.sh synko.bytetuto.com` (répétition), puis
+   `bash deploy/init-ssl.sh synko.bytetuto.com`. C'est un **certificat séparé** : ceux des autres sites ne sont pas touchés.
    Le cron existant renouvelle tous les certificats.
-4. Déployer le dashboard depuis son dépôt (dans son propre dossier, ex. `/opt/dashboard`), avec un `docker-compose.yml` de ce type :
+4. Déployer le site depuis son dépôt (dans son propre dossier, ex. `/opt/synko`), avec un `docker-compose.yml` de ce type :
 
 ```yaml
 services:
-  dashboard:
-    image: ghcr.io/bytetuto/dashboard:latest
-    container_name: bytetuto-dashboard   # nom utilisé dans EXTRA_SITES
+  synko:
+    image: ghcr.io/bytetuto/synko:latest
+    container_name: bytetuto-synko       # nom utilisé dans EXTRA_SITES
     restart: unless-stopped
     expose: ["8080"]                     # pas de « ports: » : seul nginx le joint
     networks: [sites]
@@ -153,9 +160,11 @@ networks:
     external: true
 ```
 
-Tant que le conteneur du dashboard n'est pas lancé, `dashboard.bytetuto.com` répond 503 (« site momentanément indisponible »),
-et bytetuto.com reste en ligne. nginx transmet `X-Forwarded-Proto`, `X-Real-IP` et les WebSocket. Les en-têtes CSP et anti-iframe
-sont laissés au dashboard lui-même. Taille maximale d'un envoi : 10 Mo (`nginx/extra-site.inc`).
+Tant que le conteneur d'un site n'est pas lancé, son sous-domaine répond 503 (« site momentanément indisponible »),
+et bytetuto.com comme les autres sites restent en ligne. nginx transmet `X-Forwarded-Proto`, `X-Real-IP`, les WebSocket
+et les flux temps réel (SSE : l'application envoie `X-Accel-Buffering: no` et un battement toutes les 25 s, sous le
+`proxy_read_timeout` de 60 s). Les en-têtes CSP et anti-iframe sont laissés à chaque application. Taille maximale d'un
+envoi : 10 Mo (`nginx/extra-site.inc`).
 
 ## À personnaliser
 
