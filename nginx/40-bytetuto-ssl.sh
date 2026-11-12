@@ -22,8 +22,8 @@ fi
 
 envsubst '${DOMAIN} ${SERVER_NAMES}' < "$tpl" > /etc/nginx/conf.d/default.conf
 
-# Sites supplémentaires (ex. dashboard.bytetuto.com), chacun dans son propre conteneur.
-#   EXTRA_SITES="dashboard.bytetuto.com=http://bytetuto-dashboard:8080 autre.bytetuto.com=http://autre:3000"
+# Sites supplémentaires (ex. dashboard.bytetuto.com, synko.bytetuto.com), chacun dans son propre conteneur.
+#   EXTRA_SITES="dashboard.bytetuto.com=http://bytetuto-dashboard:8080 synko.bytetuto.com=http://bytetuto-synko:8080"
 # Une entrée invalide est ignorée (avertissement) : le site principal démarre toujours.
 rm -f /etc/nginx/conf.d/extra-*.conf
 for entry in ${EXTRA_SITES:-}; do

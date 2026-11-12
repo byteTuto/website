@@ -12,7 +12,7 @@ services:
       DOMAIN: ${DOMAIN:-}
       # Sous-domaines servis par d'autres dépôts (voir README §7) : « hote=http://conteneur:port », séparés par des espaces.
       # Mettre EXTRA_SITES= (vide) dans .env pour les désactiver.
-      EXTRA_SITES: ${EXTRA_SITES-dashboard.bytetuto.com=http://bytetuto-dashboard:8080}
+      EXTRA_SITES: ${EXTRA_SITES-dashboard.bytetuto.com=http://bytetuto-dashboard:8080 synko.bytetuto.com=http://bytetuto-synko:8080}
     networks:
       - default
       - sites                   # pour joindre les conteneurs des autres sites (l'API, elle, n'y est pas)
@@ -51,7 +51,7 @@ volumes:
   api-data:
 
 networks:
-  # Réseau partagé avec les autres dépôts (dashboard…). Créé par deploy/deploy.sh s'il n'existe pas.
+  # Réseau partagé avec les autres dépôts (dashboard, synko…). Créé par deploy/deploy.sh s'il n'existe pas.
   sites:
     name: bytetuto-sites
     external: true

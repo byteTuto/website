@@ -1,4 +1,4 @@
-# Relais vers un site supplémentaire (dashboard…) qui tourne dans son propre conteneur,
+# Relais vers un site supplémentaire (dashboard, synko…) qui tourne dans son propre conteneur,
 # sur le réseau Docker partagé « bytetuto-sites ». $site_upstream est fixé par le bloc server.
 # Résolu à chaque requête : nginx démarre même si le conteneur du site est absent
 # (le visiteur voit alors « site momentanément indisponible », bytetuto.com n'est pas touché).
@@ -15,7 +15,7 @@ location / {
     proxy_set_header Upgrade $http_upgrade;            # WebSocket (graphiques en temps réel…)
     proxy_set_header Connection $connection_upgrade;
     proxy_connect_timeout 3s;
-    proxy_read_timeout 60s;
+    proxy_read_timeout 60s;                            # flux temps réel (SSE) : l'appli envoie un battement < 60 s
     client_max_body_size 10m;
 
     add_header X-Content-Type-Options "nosniff" always;
