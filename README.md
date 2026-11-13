@@ -115,7 +115,7 @@ Le seuil d'affichage du compteur se change avec `COUNTER_MIN=…` dans `.env`, p
 En local, `docker compose -f docker-compose.dev.yml up --build` lance aussi l'API (compteur visible dès 3 inscrits).
 Test de bout en bout : `python3 api/test_api.py http://localhost:8080` (API lancée avec `RATE_MAX=8`, base vide).
 
-## 7. Ajouter un autre site sur l'EC2 (dashboard.bytetuto.com, synko.bytetuto.com)
+## 7. Ajouter un autre site sur l'EC2 (dashboard.bytetuto.com, syncoapp.bytetuto.com)
 
 Chaque site supplémentaire a **son propre dépôt** et son propre conteneur. Le nginx de ce dépôt reste le seul
 à écouter sur 80/443 : il reconnaît le sous-domaine et relaie vers le conteneur, sur le réseau Docker partagé
@@ -130,7 +130,8 @@ visiteur ──▶ nginx (bytetuto-web, 80/443) ──┬──▶ site byteTuto
 | Sous-domaine | Dépôt | Conteneur | Dossier sur l'EC2 |
 | --- | --- | --- | --- |
 | dashboard.bytetuto.com | [byteTuto/dashboard](https://github.com/byteTuto/dashboard) | `bytetuto-dashboard:8080` | `/opt/dashboard` |
-| synko.bytetuto.com | [byteTuto/synko](https://github.com/byteTuto/synko) | `bytetuto-synko:8080` | `/opt/synko` |
+| syncoapp.bytetuto.com (Synco App) | [byteTuto/synko](https://github.com/byteTuto/synko) | `bytetuto-synko:8080` | `/opt/synko` |
+| synko.bytetuto.com (ancien nom, redirige vers syncoapp) | idem | `bytetuto-synko:8080` | `/opt/synko` |
 
 **Déclarer le site** : variable `EXTRA_SITES` du service `web` dans `docker-compose.yml`
 (déjà réglée sur les deux sites ci-dessus). Plusieurs sites : entrées `hote=http://conteneur:port` séparées par des espaces.
