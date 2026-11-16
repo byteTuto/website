@@ -50,5 +50,18 @@ s, _, h = call("POST", "/api/subscribe", {"email": "nope"}, form=True, ip="203.0
 # nginx remplace X-Real-IP par la vraie adresse : tous ces appels viennent de la même IP (lancer l'API avec RATE_MAX=8)
 codes = [call("POST", "/api/subscribe", {"email": f"r{i}@exemple.fr"}, ip="203.0.113.9")[0] for i in range(8)]
 check(429 in codes, f"limite de débit ({codes})")
+# Demandes de devis (compteur de débit séparé des inscriptions)
+s, d, _ = call("POST", "/api/devis", {"kind": "vitrine", "email": "Client@Exemple.fr", "name": "Atelier Lina", "message": "Un site pour mon salon.\nAvec les horaires."})
+check(s == 201 and d["ok"], "demande de devis acceptée")
+s, d, _ = call("POST", "/api/devis", {"kind": "portfolio", "email": "pas-un-email"}); check(s == 422 and d["error"] == "invalid_email", "devis : email invalide refusé")
+s, d, _ = call("POST", "/api/devis", {"kind": "evenement", "email": "long@exemple.fr", "message": "x" * 1501}); check(s == 422 and d["error"] == "message_too_long", "devis : message trop long refusé")
+s, d, _ = call("POST", "/api/devis", {"kind": "vitrine", "email": "robot@exemple.fr", "website": "spam"}); check(s == 201, "devis : pot de miel ignoré en silence")
+s, _, h = call("POST", "/api/devis", {"kind": "reservations", "email": "sansjs@exemple.fr", "message": "Réservations de tables, 40 couverts — é à ç"}, form=True)
+check(s == 303 and h["Location"].endswith("/#devis-merci"), "devis sans JavaScript → /#devis-merci")
+s, _, h = call("POST", "/api/devis", {"kind": "vitrine", "email": "nope"}, form=True); check(s == 303 and h["Location"].endswith("/#devis-invalide"), "devis sans JS, email invalide → /#devis-invalide")
+s, d, _ = call("POST", "/api/devis", {"email": "sanstype@exemple.fr"}); check(s == 201, "devis sans type accepté (classé « autre »)")
+s, d, _ = call("GET", "/api/devis"); check(s in (403, 404), "GET /api/devis refusé")
+codes = [call("POST", "/api/devis", {"kind": "autre", "email": f"d{i}@exemple.fr"})[0] for i in range(8)]
+check(429 in codes, f"devis : limite de débit ({codes})")
 s, d, _ = call("GET", "/api/nexiste-pas"); check(s == 404, "route inconnue → 404")
 print("✔ API OK")

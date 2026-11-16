@@ -42,6 +42,7 @@ jobs:
           docker run -d --name web --network bytetuto -p 8080:80 bytetuto-site:ci
           for i in $(seq 1 15); do curl -fsS http://localhost:8080/healthz && break; sleep 1; done
           curl -fsS http://localhost:8080/ | grep -q "byteTuto"
+          curl -fsS http://localhost:8080/ | grep -q 'id="devis-form"'
           curl -fsS http://localhost:8080/app.js -o /dev/null
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/nexiste-pas)" = "404"
           curl -sI http://localhost:8080/ | grep -qi "content-security-policy"

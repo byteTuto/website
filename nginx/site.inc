@@ -15,6 +15,10 @@ location = /api/subscribe {
     limit_req zone=api_subscribe burst=10 nodelay;
     include /etc/nginx/snippets/api-proxy.inc;
 }
+location = /api/devis {
+    limit_req zone=api_devis burst=10 nodelay;
+    include /etc/nginx/snippets/api-proxy.inc;
+}
 location /api/ {
     limit_except GET HEAD { deny all; }
     include /etc/nginx/snippets/api-proxy.inc;
