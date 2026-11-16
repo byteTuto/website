@@ -3,16 +3,16 @@ title: Politique de confidentialité — byteTuto
 description: Ce que byteTuto fait de ton email : données collectées, durée de conservation, aucun cookie ni traceur publicitaire, et comment exercer tes droits RGPD.
 url: https://bytetuto.com/confidentialite/
 lang: fr
-updated: 2026-10-16
+updated: 2026-11-16
 ---
 
 # Politique de confidentialité
 
-> Mis à jour le 16 octobre 2026. Site : https://bytetuto.com/
+> Mis à jour le 16 novembre 2026. Site : https://bytetuto.com/
 
 ## En bref
 
-On te demande **seulement ton email**, pour te prévenir du lancement puis t'envoyer la newsletter byteTuto. Pas de cookie, pas de publicité ciblée, pas de revente. Tu peux tout supprimer quand tu veux.
+Pour la newsletter, on te demande **seulement ton email**, pour te prévenir du lancement puis t'envoyer la newsletter byteTuto. Si tu demandes un devis, on garde aussi ce que tu écris dans le formulaire, uniquement pour te répondre. Pas de cookie, pas de publicité ciblée, pas de revente. Tu peux tout supprimer quand tu veux.
 
 ## Qui est responsable de tes données ?
 
@@ -22,13 +22,17 @@ L'éditeur de byteTuto (voir les [mentions légales](/mentions-legales/)). Pour 
 
 - **Formulaire « Préviens-moi »** : ton adresse email, la date d'inscription et la version du texte que tu as accepté. Objectif : t'envoyer l'email de lancement et la newsletter (1 par mois maximum). Base légale : ton consentement (article 6.1.a du RGPD), que tu peux retirer à tout moment.
 
+- **Formulaire « Demander un devis »** : ton email, ton nom ou celui de ton entreprise (facultatif), le type de site, ton message (facultatif) et la date. Objectif : te répondre et préparer ton devis. Base légale : mesures précontractuelles prises à ta demande (article 6.1.b du RGPD). Ton email n'est pas ajouté à la newsletter.
+
 - **Journaux techniques du serveur** : adresse IP, page demandée, date, navigateur. Objectif : sécurité et bon fonctionnement du site (lutte contre les abus). Base légale : intérêt légitime. Ils sont effacés automatiquement après rotation (quelques semaines au plus).
 
-Ton adresse IP n'est pas enregistrée avec ton email.
+Ton adresse IP n'est pas enregistrée avec ton email ni avec ta demande de devis.
 
 ## Combien de temps ?
 
 Ton email est gardé jusqu'à ta désinscription. Sans aucune interaction de ta part pendant 3 ans, il est supprimé.
+
+Une demande de devis est gardée au plus 3 ans après notre dernier échange, puis supprimée. Si tu deviens client, les devis signés et les factures sont conservés le temps imposé par la loi.
 
 ## Qui y a accès ?
 

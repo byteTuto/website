@@ -1,4 +1,4 @@
-"""byteTuto — page admin des inscrits (/admin/), servie par le service d'inscription.
+"""byteTuto — page admin des inscrits (/admin/) et des demandes de devis (/admin/devis), servie par le service d'inscription.
 
 Sécurité :
 - Mot de passe jamais stocké : seule son empreinte scrypt est dans ADMIN_PASSWORD_HASH (fichier .env de l'EC2),
@@ -11,7 +11,7 @@ Sécurité :
   la page répond 404 sinon (ADMIN_ALLOW_HTTP=1 seulement pour les tests locaux).
 """
 import base64, csv, hashlib, hmac, html, io, os, secrets, threading, time
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote
 
 PW_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "").strip()
 SECRET = os.environ.get("ADMIN_SECRET", "").strip().encode()
@@ -20,6 +20,7 @@ SESSION_TTL = 4 * 3600
 COOKIE = "bt_admin"
 FAIL_MAX, FAIL_WINDOW = 5, 900
 LIST_MAX = 1000
+KINDS: dict[str, str] = {}   # libellés des types de site, fournis par app.py
 
 _lock = threading.Lock()
 _fails: dict[str, list[float]] = {}
@@ -105,6 +106,14 @@ th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--l);white-sp
 th{font:500 12px "JetBrains Mono",monospace;color:var(--m);text-transform:uppercase;letter-spacing:.06em}
 td.e{font-family:"JetBrains Mono",monospace;white-space:normal;overflow-wrap:anywhere}
 form.inl{margin:0}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}.tab{min-height:44px}.tab[aria-current=page]{border-color:var(--b);color:var(--b)}
+.tab b{font-weight:600;color:var(--m)}.tab[aria-current=page] b{color:var(--b)}
+.q{background:var(--r);border:1px solid var(--l);border-radius:24px;padding:20px;margin-top:16px}
+.q__top{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.badge{font:500 13px/1 "JetBrains Mono",monospace;color:var(--b);background:var(--t);padding:6px 10px;border-radius:6px}
+.q__who{margin:12px 0 0;font-family:"JetBrains Mono",monospace;overflow-wrap:anywhere}.q__who span{font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--m)}
+.q__msg{margin:12px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--s);border:1px solid var(--l);border-radius:12px;padding:12px 14px}
+.q__act{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 @media (max-width:599px){thead{display:none}tr{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:12px 0;border-bottom:1px solid var(--l)}
 td{border:0;padding:0}td.e{grid-column:1/-1}td.d{color:var(--m);font-size:14px;align-self:center}}
 """
@@ -133,7 +142,7 @@ def not_configured_page() -> bytes:
 <p><code>bash deploy/set-admin-password.sh</code></p><p class="mut">Le script te demande un mot de passe et n'enregistre que son empreinte.</p></div>""")
 
 
-def dashboard(rows, total: int, token: str, q: str = "", flash: str = "") -> bytes:
+def dashboard(rows, total: int, token: str, q: str = "", flash: str = "", n_quotes: int = 0) -> bytes:
     csrf = csrf_for(token)
     fl = f'<p class="msg" role="status">{html.escape(flash)}</p>' if flash else ""
     trs = "".join(
@@ -144,8 +153,7 @@ def dashboard(rows, total: int, token: str, q: str = "", flash: str = "") -> byt
     shown = f"{len(rows)} résultat(s) pour « {html.escape(q)} »" if q else (
         f"Les {LIST_MAX} plus récents (tout est dans le CSV)" if total > LIST_MAX else "Du plus récent au plus ancien")
     empty = '<p class="mut" style="margin-top:16px">Personne pour l\'instant.</p>' if not rows else ""
-    return page("Inscrits", f"""<div class="row"><div><p class="k">$ bytetuto admin</p><h1>Inscrits byteTuto</h1></div>
-<form class="inl" method="post" action="/admin/logout"><input type="hidden" name="csrf" value="{csrf}"><button class="btn" type="submit">Se déconnecter</button></form></div>
+    return page("Inscrits", f"""{head("Inscrits byteTuto", csrf, "subs", total, n_quotes)}
 {fl}
 <div class="card row"><div><div class="stat">{total}</div><div class="mut">personne(s) attendent le lancement</div></div>
 <a class="btn btn--p" href="/admin/export.csv">Télécharger le CSV</a></div>
@@ -164,6 +172,66 @@ def confirm_page(email: str, csrf: str) -> bytes:
 <div class="row" style="justify-content:flex-start"><form class="inl" method="post" action="/admin/delete">
 <input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="email" value="{e}"><input type="hidden" name="confirm" value="1">
 <button class="btn btn--p" type="submit">Oui, supprimer</button></form><a class="btn" href="/admin/">Annuler</a></div></div>""")
+
+
+def tabs(current: str, n_subs: int, n_quotes: int) -> str:
+    def t(href, label, n, key):
+        cur = ' aria-current="page"' if key == current else ""
+        return f'<a class="btn tab" href="{href}"{cur}>{label} <b>{n}</b></a>'
+    return f'<nav class="tabs" aria-label="Sections">{t("/admin/", "Inscrits", n_subs, "subs")}{t("/admin/devis", "Demandes de devis", n_quotes, "quotes")}</nav>'
+
+
+def head(title: str, csrf: str, current: str, n_subs: int, n_quotes: int) -> str:
+    return f"""<div class="row"><div><p class="k">$ bytetuto admin</p><h1>{title}</h1></div>
+<form class="inl" method="post" action="/admin/logout"><input type="hidden" name="csrf" value="{csrf}"><button class="btn" type="submit">Se déconnecter</button></form></div>
+{tabs(current, n_subs, n_quotes)}"""
+
+
+def quotes_page(rows, total: int, n_subs: int, token: str, flash: str = "") -> bytes:
+    csrf = csrf_for(token)
+    fl = f'<p class="msg" role="status">{html.escape(flash)}</p>' if flash else ""
+    cards = []
+    for qid, created, email, name, kind, message in rows:
+        e = html.escape(email)
+        subject = quote("Ta demande de devis byteTuto")
+        who = e + (f" <span>· {html.escape(name)}</span>" if name else "")
+        msg = f'<p class="q__msg">{html.escape(message)}</p>' if message else '<p class="mut" style="margin:12px 0 0">Pas de message.</p>'
+        cards.append(f"""<article class="q"><div class="q__top"><span class="badge">{html.escape(KINDS.get(kind, kind))}</span>
+<span class="mut" style="font-size:14px">n° {qid} · {html.escape(created[:16].replace("T", " "))} UTC</span></div>
+<p class="q__who">{who}</p>{msg}
+<div class="q__act"><a class="btn btn--p" href="mailto:{quote(email, safe="@")}?subject={subject}">Répondre par email</a>
+<form class="inl" method="post" action="/admin/devis/delete"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="id" value="{qid}">
+<button class="btn btn--d" type="submit" aria-label="Supprimer la demande n° {qid}">Supprimer</button></form></div></article>""")
+    shown = f"Les {LIST_MAX} plus récentes (tout est dans le CSV)" if total > LIST_MAX else "De la plus récente à la plus ancienne"
+    empty = '<p class="mut" style="margin-top:16px">Aucune demande pour l\'instant.</p>' if not rows else ""
+    return page("Demandes de devis", f"""{head("Demandes de devis", csrf, "quotes", n_subs, total)}
+{fl}
+<div class="card row"><div><div class="stat">{total}</div><div class="mut">demande(s) de devis</div></div>
+<a class="btn btn--p" href="/admin/devis.csv">Télécharger le CSV</a></div>
+<p class="mut" style="margin:24px 0 0">{shown}</p>{empty}{"".join(cards)}
+<p class="mut" style="font-size:13px;margin-top:24px">Réponds depuis contact@bytetuto.com. Supprime une demande quand elle est traitée et que tu n'en as plus besoin, ou dès que la personne le demande (RGPD).</p>""")
+
+
+def confirm_quote_page(qid: int, email: str, csrf: str) -> bytes:
+    e = html.escape(email)
+    return page("Confirmer", f"""<p class="k">$ rm devis/{qid}</p><h1>Supprimer cette demande ?</h1>
+<div class="card"><p style="font-family:'JetBrains Mono',monospace;overflow-wrap:anywhere">n° {qid} · {e}</p>
+<p class="mut">La suppression est définitive.</p>
+<div class="row" style="justify-content:flex-start"><form class="inl" method="post" action="/admin/devis/delete">
+<input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="id" value="{qid}"><input type="hidden" name="confirm" value="1">
+<button class="btn btn--p" type="submit">Oui, supprimer</button></form><a class="btn" href="/admin/devis">Annuler</a></div></div>""")
+
+
+def export_quotes_csv(con) -> bytes:
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["id", "created_at", "email", "name", "kind", "message", "notice_version"])
+    for r in con.execute("SELECT id, created_at, email, name, kind, message, notice_version FROM quotes ORDER BY id"):
+        r = list(r)
+        r[4] = KINDS.get(r[4], r[4])
+        # une cellule qui commence par = + - @ serait lue comme une formule par Excel
+        w.writerow(["'" + c if isinstance(c, str) and c[:1] in "=+-@" else c for c in r])
+    return ("\ufeff" + buf.getvalue()).encode()
 
 
 def export_csv(con) -> bytes:
@@ -253,17 +321,47 @@ def handle(h, method: str, db):
         name = f"inscrits-bytetuto-{time.strftime('%Y-%m-%d')}.csv"
         return send(200, body, "text/csv; charset=utf-8", [("Content-Disposition", f'attachment; filename="{name}"')])
 
+    if path == "/admin/devis/delete" and method == "POST":
+        try:
+            qid = int(form.get("id", ""))
+        except ValueError:
+            return redirect("/admin/devis?ok=introuvable")
+        with db() as con:
+            if form.get("confirm") != "1":
+                row = con.execute("SELECT email FROM quotes WHERE id = ?", (qid,)).fetchone()
+                if not row:
+                    return redirect("/admin/devis?ok=introuvable")
+                return send(200, confirm_quote_page(qid, row[0], csrf_for(token)))
+            gone = con.execute("DELETE FROM quotes WHERE id = ?", (qid,)).rowcount
+        return redirect("/admin/devis?ok=" + ("supprime" if gone else "introuvable"))
+
+    if path == "/admin/devis.csv" and method == "GET":
+        with db() as con:
+            body = export_quotes_csv(con)
+        name = f"devis-bytetuto-{time.strftime('%Y-%m-%d')}.csv"
+        return send(200, body, "text/csv; charset=utf-8", [("Content-Disposition", f'attachment; filename="{name}"')])
+
+    if path in ("/admin/devis", "/admin/devis/") and method == "GET":
+        qs = parse_qs(query)
+        flash = {"supprime": "✔ Demande supprimée.", "introuvable": "Cette demande n'existe plus."}.get(qs.get("ok", [""])[0], "")
+        with db() as con:
+            total = con.execute("SELECT COUNT(*) FROM quotes").fetchone()[0]
+            n_subs = con.execute("SELECT COUNT(*) FROM subscribers").fetchone()[0]
+            rows = con.execute("SELECT id, created_at, email, name, kind, message FROM quotes ORDER BY id DESC LIMIT ?", (LIST_MAX,)).fetchall()
+        return send(200, quotes_page(rows, total, n_subs, token, flash))
+
     if path == "/admin/" and method == "GET":
         qs = parse_qs(query)
         q = qs.get("q", [""])[0].strip()[:254]
         flash = {"supprime": "✔ Email supprimé.", "introuvable": "Cet email n'était plus dans la liste."}.get(qs.get("ok", [""])[0], "")
         with db() as con:
             total = con.execute("SELECT COUNT(*) FROM subscribers").fetchone()[0]
+            n_quotes = con.execute("SELECT COUNT(*) FROM quotes").fetchone()[0]
             if q:
                 rows = con.execute("SELECT email, created_at FROM subscribers WHERE email LIKE ? ESCAPE '\\' ORDER BY id DESC LIMIT ?",
                                    ("%" + q.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%", LIST_MAX)).fetchall()
             else:
                 rows = con.execute("SELECT email, created_at FROM subscribers ORDER BY id DESC LIMIT ?", (LIST_MAX,)).fetchall()
-        return send(200, dashboard(rows, total, token, q, flash))
+        return send(200, dashboard(rows, total, token, q, flash, n_quotes))
 
     send(404, page("Introuvable", '<h1>404</h1><p><a href="/admin/">Retour</a></p>'))

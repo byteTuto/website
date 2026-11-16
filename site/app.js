@@ -227,6 +227,60 @@
   loadCount();
 
   /* =====================================================================
+     Demande de devis (API /api/devis, voir api/app.py)
+     ===================================================================== */
+  const qForm = document.getElementById("devis-form");
+  const qMsg = document.getElementById("devis-msg");
+  const qText = document.getElementById("devis-message");
+  const qCount = document.getElementById("devis-count");
+  const Q_MAX = 1500;
+
+  const syncCount = () => {
+    const n = qText.value.length;
+    qCount.textContent = n ? `${n} / ${Q_MAX}` : `${Q_MAX} caractères max.`;
+  };
+  qText.addEventListener("input", syncCount);
+
+  function quoteFail(text, field) {
+    qMsg.className = "signup__msg is-err"; qMsg.textContent = text;
+    if (field) field.focus();
+  }
+
+  qForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (location.hash && /devis-(merci|oups|invalide)/.test(location.hash)) history.replaceState(null, "", location.pathname + "#devis");
+    const btn = qForm.querySelector("button[type=submit]");
+    const kind = qForm.querySelector("input[name=kind]:checked");
+    const email = document.getElementById("devis-email");
+    qMsg.className = "signup__msg"; qMsg.textContent = "";
+    if (!kind) return quoteFail("Choisis le type de site (ou « Autre » si tu ne sais pas encore).", qForm.querySelector("input[name=kind]"));
+    if (!EMAIL_RE.test(email.value.trim())) return quoteFail("Cette adresse email ne semble pas valide.", email);
+    btn.disabled = true;
+    let res = { ok: false, text: "Oups, la demande n'est pas partie. Réessaie dans un instant ou écris à contact@bytetuto.com." };
+    try {
+      const r = await fetch("/api/devis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          kind: kind.value,
+          email: email.value.trim(),
+          name: document.getElementById("devis-name").value,
+          message: qText.value,
+          website: document.getElementById("devis-website").value,
+        }),
+      });
+      if (r.ok) res = { ok: true, text: "✔ Demande envoyée ! On te répond par email au plus vite." };
+      else if (r.status === 422) res = { ok: false, text: "Vérifie ton email (et que ton message fait moins de 1500 caractères)." };
+      else if (r.status === 429) res = { ok: false, text: "Trop de demandes d'un coup. Réessaie dans quelques minutes." };
+    } catch (_) { /* réseau */ }
+    btn.disabled = false;
+    if (!res.ok) return quoteFail(res.text);
+    qMsg.className = "signup__msg is-ok"; qMsg.textContent = res.text;
+    qForm.reset(); syncCount();
+    qForm.classList.add("quote--done");
+  });
+
+  /* =====================================================================
      Teaser vidéo : lecture muette quand il est visible, boutons pause / son
      ===================================================================== */
   const video = document.getElementById("teaser");
@@ -340,6 +394,7 @@
     ["tutos", "ce qui arrive bientôt"],
     ["inscris <email>", "être prévenu du lancement"],
     ["compteur", "combien attendent le lancement"],
+    ["devis", "demander un devis pour ton site"],
     ["teaser", "lancer la vidéo avec le son"],
     ["youtube · tiktok", "ouvrir nos chaînes"],
     ["ls · cat · date · echo", "les classiques"],
@@ -400,8 +455,14 @@
     vim: () => line('<span class="mut">Tu es sûr ? Personne n\'est jamais ressorti de vim. (indice : :q!)</span>'),
     npm: () => { boot(); },
     hello: () => line("Salut ! 👋 Tape help pour commencer."),
+    devis: () => {
+      line('<span class="ok">✔</span> On crée ton site : vitrine, portfolio, événement ou réservations.');
+      line('<span class="mut">Devis gratuit et sans engagement, le formulaire est juste en dessous.</span>');
+      document.getElementById("devis").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      setTimeout(() => qForm.querySelector("input[name=kind]").focus({ preventScroll: true }), reduce ? 0 : 600);
+    },
   };
-  Object.assign(COMMANDS, { subscribe: COMMANDS.inscris, inscription: COMMANDS.inscris, bonjour: COMMANDS.hello, salut: COMMANDS.hello, quit: COMMANDS.exit, about: COMMANDS.whoami, nano: COMMANDS.vim, emacs: COMMANDS.vim });
+  Object.assign(COMMANDS, { site: COMMANDS.devis, subscribe: COMMANDS.inscris, inscription: COMMANDS.inscris, bonjour: COMMANDS.hello, salut: COMMANDS.hello, quit: COMMANDS.exit, about: COMMANDS.whoami, nano: COMMANDS.vim, emacs: COMMANDS.vim });
   const NAMES = Object.keys(COMMANDS);
 
   async function run(raw) {

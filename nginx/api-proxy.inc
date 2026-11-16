@@ -8,6 +8,6 @@ proxy_set_header X-Real-IP $remote_addr;      # écrase toute valeur envoyée pa
 proxy_set_header Connection "";
 proxy_connect_timeout 3s;
 proxy_read_timeout 10s;
-client_max_body_size 4k;
+client_max_body_size 16k;                     # devis : message de 1 500 caractères ; l'API vérifie la taille par route
 include /etc/nginx/snippets/security-headers.inc;
 add_header Cache-Control "no-store" always;

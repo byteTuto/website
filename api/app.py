@@ -5,17 +5,21 @@ Routes (derrière nginx, préfixe /api/) :
   GET  /api/health      -> {"ok": true}
   GET  /api/count       -> {"count": 42, "show": true}   (show = count >= COUNTER_MIN)
   POST /api/subscribe   -> JSON {"email": "...", "website": ""}  ou formulaire HTML classique (sans JS)
+  POST /api/devis       -> demande de devis : JSON {"email", "kind", "name"?, "message"?, "website": ""}
+                           ou formulaire HTML classique (retour sur /#devis-merci, /#devis-invalide, /#devis-oups)
 
-  /admin/               -> page admin des inscrits (HTTPS + mot de passe, voir admin.py)
+  /admin/               -> page admin des inscrits et des demandes de devis (HTTPS + mot de passe, voir admin.py)
 
 Administration (sur l'EC2) :
   bash deploy/set-admin-password.sh                                # choisir / changer le mot de passe de /admin/
   docker compose exec api python app.py count
   docker compose exec -T api python app.py export > inscrits.csv
-  docker compose exec api python app.py delete toi@exemple.fr     # droit à l'effacement (RGPD)
+  docker compose exec api python app.py delete toi@exemple.fr     # droit à l'effacement (RGPD) : inscription + devis
+  docker compose exec -T api python app.py devis > devis.csv       # demandes de devis
 
 Variables : DB_PATH (/data/subscribers.db), COUNTER_MIN (30), RATE_MAX (5), PORT (8000).
 Données gardées : email, date d'inscription, version du texte de consentement. Pas d'adresse IP.
+Devis : email, nom (facultatif), type de site, message (facultatif), date, version du texte d'information. Pas d'adresse IP.
 """
 import csv, json, os, re, sqlite3, sys, threading, time
 import admin as admin_page
@@ -27,6 +31,17 @@ COUNTER_MIN = int(os.environ.get("COUNTER_MIN", "30"))
 PORT = int(os.environ.get("PORT", "8000"))
 CONSENT_VERSION = "2026-10-16"           # à changer si le texte sous le formulaire change
 MAX_BODY = 2048
+MAX_BODY_DEVIS = 16384                   # message de 1 500 caractères accentués, encodé dans un formulaire
+QUOTE_NOTICE_VERSION = "2026-11-16"      # à changer si le texte sous le formulaire de devis change
+KINDS = {                                # types de site proposés dans le formulaire de devis
+    "vitrine": "Site vitrine",
+    "portfolio": "Portfolio",
+    "evenement": "Événement",
+    "reservations": "Réservations",
+    "autre": "Autre / je ne sais pas encore",
+}
+NAME_MAX, MESSAGE_MAX = 100, 1500
+admin_page.KINDS = KINDS
 RATE_MAX = int(os.environ.get("RATE_MAX", "5"))   # inscriptions par IP et par 10 minutes (en mémoire seulement)
 RATE_WINDOW = 600
 EMAIL_RE = re.compile(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$")
@@ -43,6 +58,14 @@ def db():
         email TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         consent_version TEXT NOT NULL)""")
+    con.execute("""CREATE TABLE IF NOT EXISTS quotes (
+        id INTEGER PRIMARY KEY,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL DEFAULT '',
+        kind TEXT NOT NULL,
+        message TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        notice_version TEXT NOT NULL)""")
     return con
 
 
@@ -59,11 +82,30 @@ def subscribe(email: str) -> tuple[bool, int]:
         return cur.rowcount == 1, con.execute("SELECT COUNT(*) FROM subscribers").fetchone()[0]
 
 
+def add_quote(email: str, name: str, kind: str, message: str) -> int:
+    """Enregistre une demande de devis. Renvoie son numéro."""
+    with _lock, db() as con:
+        return con.execute("INSERT INTO quotes (email, name, kind, message, notice_version) VALUES (?, ?, ?, ?, ?)",
+                           (email, name, kind, message, QUOTE_NOTICE_VERSION)).lastrowid
+
+
+def clean_text(v, limit: int, multiline: bool = False) -> str:
+    """Texte libre : caractères de contrôle retirés (sauf retours à la ligne du message), longueur limitée."""
+    s = str(v or "").replace("\r\n", "\n").replace("\r", "\n")
+    s = "".join(c for c in s if c >= " " or (multiline and c in "\n\t"))
+    if multiline:
+        s = re.sub(r"\n{3,}", "\n\n", s)
+    else:
+        s = " ".join(s.split())
+    return s.strip()[:limit]
+
+
 def valid_email(email: str) -> bool:
     return 6 <= len(email) <= 254 and EMAIL_RE.match(email) is not None
 
 
 def rate_limited(ip: str) -> bool:
+    """ip peut être préfixée (« devis:1.2.3.4 ») pour avoir un compteur par formulaire."""
     now = time.monotonic()
     with _lock:
         hits = [t for t in _hits.get(ip, []) if now - t < RATE_WINDOW]
@@ -113,18 +155,21 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/admin" or self.path.startswith("/admin/"):
             return admin_page.handle(self, "POST", db)
-        if self.path.split("?")[0] != "/api/subscribe":
+        path = self.path.split("?")[0]
+        if path not in ("/api/subscribe", "/api/devis"):
             return self._json(404, {"ok": False, "error": "not_found"})
+        devis = path == "/api/devis"
+        pre = "devis-" if devis else ""          # ancres de retour du formulaire sans JS
         ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         is_form = ctype == "application/x-www-form-urlencoded"
-        fail = (lambda code, err, frag: self._redirect(frag)) if is_form else \
+        fail = (lambda code, err, frag: self._redirect(pre + frag)) if is_form else \
                (lambda code, err, frag: self._json(code, {"ok": False, "error": err}))
 
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             length = -1
-        if not 0 < length <= MAX_BODY:
+        if not 0 < length <= (MAX_BODY_DEVIS if devis else MAX_BODY):
             return fail(413, "too_large", "oups")
         raw = self.rfile.read(length).decode("utf-8", "replace")
         try:
@@ -140,8 +185,10 @@ class Handler(BaseHTTPRequestHandler):
             return fail(400, "bad_request", "oups")
 
         ip = self.headers.get("X-Real-IP") or self.client_address[0]
-        if rate_limited(ip):
+        if rate_limited(("devis:" if devis else "") + ip):
             return fail(429, "too_many", "oups")
+        if devis:
+            return self._devis(data, is_form, fail)
 
         # Pot de miel : champ invisible que seuls les robots remplissent -> on fait semblant d'accepter
         if str(data.get("website", "")).strip():
@@ -161,6 +208,24 @@ class Handler(BaseHTTPRequestHandler):
             out["rank"] = n
         self._json(201 if new else 200, out)
 
+    def _devis(self, data: dict, is_form: bool, fail):
+        # Pot de miel : on fait semblant d'accepter
+        if str(data.get("website", "")).strip():
+            return self._redirect("devis-merci") if is_form else self._json(201, {"ok": True})
+        email = str(data.get("email", "")).strip().lower()
+        if not valid_email(email):
+            return fail(422, "invalid_email", "invalide")
+        kind = str(data.get("kind", "")).strip().lower()
+        if kind not in KINDS:
+            kind = "autre"
+        message = clean_text(data.get("message"), MESSAGE_MAX + 1, multiline=True)
+        if len(message) > MESSAGE_MAX:
+            return fail(422, "message_too_long", "oups")
+        add_quote(email, clean_text(data.get("name"), NAME_MAX), kind, message)
+        if is_form:
+            return self._redirect("devis-merci")
+        self._json(201, {"ok": True})
+
 
 def admin(cmd: str, arg: str | None):
     if cmd == "count":
@@ -176,12 +241,19 @@ def admin(cmd: str, arg: str | None):
         if len(pw) < 12:
             sys.exit("mot de passe trop court (12 caractères minimum)")
         print(admin_page.hash_password(pw))
-    elif cmd == "delete" and arg:
+    elif cmd == "devis":
         with db() as con:
-            n = con.execute("DELETE FROM subscribers WHERE email = ?", (arg.strip().lower(),)).rowcount
-        print("supprimé" if n else "introuvable")
+            w = csv.writer(sys.stdout)
+            w.writerow(["id", "created_at", "email", "name", "kind", "message", "notice_version"])
+            w.writerows(con.execute("SELECT id, created_at, email, name, kind, message, notice_version FROM quotes ORDER BY id"))
+    elif cmd == "delete" and arg:
+        e = arg.strip().lower()
+        with db() as con:
+            n = con.execute("DELETE FROM subscribers WHERE email = ?", (e,)).rowcount
+            q = con.execute("DELETE FROM quotes WHERE email = ?", (e,)).rowcount
+        print(f"supprimé (inscription : {n}, demandes de devis : {q})" if n or q else "introuvable")
     else:
-        sys.exit("usage : app.py [serve | count | export | delete <email> | hash-password < mot-de-passe]")
+        sys.exit("usage : app.py [serve | count | export | devis | delete <email> | hash-password < mot-de-passe]")
 
 
 if __name__ == "__main__":

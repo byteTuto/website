@@ -46,6 +46,16 @@
         "publisher": { "@id": "https://bytetuto.com/#org" }
       },
       {
+        "@type": "Service",
+        "@id": "https://bytetuto.com/#creation-sites",
+        "name": "Création de sites web",
+        "serviceType": "Création de petits sites : vitrine, portfolio, événement, réservations",
+        "description": "Des petits sites clairs, rapides et pensés pour le mobile. Devis gratuit et sans engagement.",
+        "provider": { "@id": "https://bytetuto.com/#org" },
+        "areaServed": { "@type": "Country", "name": "France" },
+        "url": "https://bytetuto.com/#devis"
+      },
+      {
         "@type": "VideoObject",
         "@id": "https://bytetuto.com/#teaser",
         "name": "byteTuto — teaser « Coming soon »",
@@ -297,6 +307,48 @@
 
     .btn--ghost { cursor: pointer; }
     .actions { margin-bottom: 0; }
+    .btn--devis { min-height: 48px; color: var(--byte); background: var(--byte-tint); border: 1px solid rgba(184,240,60,.45); }
+    .btn--devis:hover { border-color: var(--byte); }
+
+    /* ---------- Demande de devis ---------- */
+    @media (min-width: 900px) { .panel--wide { grid-column: 1 / -1; } }
+    .quote { display: grid; gap: 18px; }
+    @media (min-width: 900px) { .quote { grid-template-columns: 1fr 1fr; column-gap: 24px; } .quote__full { grid-column: 1 / -1; } }
+    .quote fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+    .quote legend, .field__label { display: block; padding: 0; margin: 0 0 8px; font-weight: 600; color: var(--ink); }
+    .field__opt { font: 500 13px/1 var(--font-mono); color: var(--ink-muted); margin-left: 6px; }
+    .kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+    .kind { position: relative; }
+    .kind input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .kind span {
+      display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px;
+      border: 1px solid var(--line); border-radius: 999px; background: rgba(23,27,34,.9);
+      font: 600 15px/20px var(--font-sans); cursor: pointer; transition: border-color .15s ease, background .15s ease;
+    }
+    .kind span svg { width: 18px; height: 18px; flex: none; color: var(--ink-muted); }
+    .kind span:hover { border-color: var(--byte); }
+    .kind input:checked + span { background: var(--byte); color: var(--on-byte); border-color: var(--byte); }
+    .kind input:checked + span svg { color: var(--on-byte); }
+    .kind input:focus-visible + span { outline: 2px solid var(--byte); outline-offset: 3px; }
+    .field input, .field textarea {
+      display: block; width: 100%; min-height: 48px; padding: 12px 14px;
+      background: rgba(23,27,34,.9); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-md);
+      font: 500 16px/24px var(--font-sans);
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .field input[type=email] { font-family: var(--font-mono); }
+    .field textarea { min-height: 132px; resize: vertical; }
+    .field input::placeholder, .field textarea::placeholder { color: var(--ink-muted); opacity: .8; }
+    .field input:focus, .field textarea:focus { outline: 0; border-color: var(--byte); box-shadow: 0 0 0 3px rgba(184,240,60,.18); }
+    .field__hint { margin: 6px 0 0; font: 500 13px/18px var(--font-mono); color: var(--ink-muted); text-align: right; }
+    .quote__send { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+    .quote__send .btn { min-height: 48px; border: 0; cursor: pointer; }
+    .quote__send .btn[disabled] { opacity: .7; cursor: progress; transform: none; }
+    .quote__legal { margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); flex: 1 1 260px; }
+    .quote__legal a { color: var(--ink); }
+    .quote__legal a:hover { color: var(--byte); }
+    .quote .signup__msg, .quote .flash { margin: 0; }
+    .quote--done .quote__send .btn { background: var(--byte-tint); color: var(--byte); }
 
     /* ---------- Vidéo ---------- */
     .video { position: relative; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--line); background: #080A0F; }
@@ -435,6 +487,10 @@
     </form>
 
     <div class="actions">
+      <a class="btn btn--devis" href="#devis">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+        Demander un devis
+      </a>
       <!-- logo officiel YouTube (kit brand.youtube, version couleur pour fond sombre), non modifié -->
       <a class="btn btn--ghost btn--logo" href="https://www.youtube.com/@bytetuto" target="_blank" rel="noopener">
         <img src="/media/brand/youtube-logo.svg" alt="YouTube" width="131" height="44">
@@ -491,6 +547,54 @@
             </button>
           </div>
         </div>
+      </section>
+
+      <section class="panel panel--wide" id="devis" aria-labelledby="devis-title">
+        <h2 class="panel__title" id="devis-title"><span class="panel__kicker">03</span> Besoin d'un site ?</h2>
+        <p class="panel__lead">On crée des petits sites clairs, rapides et pensés pour le mobile. Dis-nous ce qu'il te faut : <strong>devis gratuit et sans engagement</strong>.</p>
+        <form class="quote" id="devis-form" action="/api/devis" method="post" novalidate>
+          <fieldset class="quote__full">
+            <legend>Quel type de site ?</legend>
+            <div class="kinds">
+              <label class="kind"><input type="radio" name="kind" value="vitrine" required><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 11v9h16v-9"/><path d="M3 9a3 3 0 0 0 6 0a3 3 0 0 0 6 0a3 3 0 0 0 6 0"/></svg>Site vitrine</span></label>
+              <label class="kind"><input type="radio" name="kind" value="portfolio"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Portfolio</span></label>
+              <label class="kind"><input type="radio" name="kind" value="evenement"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Événement</span></label>
+              <label class="kind"><input type="radio" name="kind" value="reservations"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Réservations</span></label>
+              <label class="kind"><input type="radio" name="kind" value="autre"><span>Autre / je ne sais pas</span></label>
+            </div>
+          </fieldset>
+          <div class="field">
+            <label class="field__label" for="devis-email">Ton email</label>
+            <input id="devis-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="ton@email.fr" required maxlength="254">
+          </div>
+          <div class="field">
+            <label class="field__label" for="devis-name">Ton nom ou ton entreprise <span class="field__opt">optionnel</span></label>
+            <input id="devis-name" name="name" type="text" autocomplete="organization" placeholder="Atelier Lina" maxlength="100">
+          </div>
+          <div class="field quote__full">
+            <label class="field__label" for="devis-message">Ton projet en quelques mots <span class="field__opt">optionnel</span></label>
+            <textarea id="devis-message" name="message" rows="4" maxlength="1500" aria-describedby="devis-count" placeholder="Ton activité, ce que le site doit faire, une date limite…"></textarea>
+            <p class="field__hint" id="devis-count" aria-live="off">1500 caractères max.</p>
+          </div>
+          <!-- pot de miel : invisible pour les humains, rempli par les robots -->
+          <div class="hp" aria-hidden="true">
+            <label for="devis-website">Ne pas remplir</label>
+            <input id="devis-website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <div class="quote__send quote__full">
+            <button class="btn btn--primary" type="submit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
+              Envoyer ma demande
+            </button>
+            <p class="quote__legal" id="devis-legal">Ton email sert uniquement à te répondre au sujet de ce devis, jamais à la newsletter. <a href="/confidentialite/">Confidentialité</a></p>
+          </div>
+          <div class="quote__full">
+            <p class="signup__msg" id="devis-msg" role="status" aria-live="polite"></p>
+            <p class="flash flash--ok" id="devis-merci">✔ Demande envoyée ! On te répond par email au plus vite.</p>
+            <p class="flash flash--err" id="devis-invalide">Cette adresse email ne semble pas valide. Vérifie-la et renvoie ta demande.</p>
+            <p class="flash flash--err" id="devis-oups">Oups, la demande n'est pas partie. Réessaie dans un instant ou écris à contact@bytetuto.com.</p>
+          </div>
+        </form>
       </section>
     </div>
 

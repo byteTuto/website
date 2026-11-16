@@ -64,6 +64,23 @@ s, b, h = call("POST", "/admin/delete", {"email": "bob@exemple.fr", "csrf": csrf
 s, b, h = call("GET", "/api/count"); check(json.loads(b)["count"] == 3, "rien n'est supprimé avant confirmation")
 s, b, h = call("POST", "/admin/delete", {"email": "bob@exemple.fr", "csrf": csrf, "confirm": "1"}, cookie=cookie); check(s == 303 and "supprime" in h["Location"], "suppression confirmée")
 s, b, h = call("GET", "/api/count"); check(json.loads(b)["count"] == 2, "bob n'est plus compté")
+# Demandes de devis
+call("POST", "/api/devis", json_body={"kind": "vitrine", "email": "dora@exemple.fr", "name": "Dora <b>Café</b>", "message": "=1+1 ligne 1\nligne 2"}, ip="198.51.100.51")
+call("POST", "/api/devis", json_body={"email": "eve@exemple.fr"}, ip="198.51.100.51")
+s, b, h = call("GET", "/admin/devis"); check(s == 303 and h["Location"] == "/admin/", "devis refusés sans connexion")
+s, b, h = call("GET", "/admin/devis", cookie=cookie)
+check(s == 200 and "dora@exemple.fr" in b and "Site vitrine" in b and "Autre / je ne sais pas encore" in b, "page devis : 2 demandes, types lisibles")
+check("&lt;b&gt;Café&lt;/b&gt;" in b and "<b>Café</b>" not in b, "page devis : texte échappé")
+check('href="mailto:dora@exemple.fr?subject=' in b, "page devis : bouton Répondre par email")
+s, b2, h = call("GET", "/admin/", cookie=cookie); check("Demandes de devis <b>2</b>" in b2, "onglet devis avec le nombre de demandes")
+qid = re.search(r'name="id" value="(\d+)"', b).group(1)
+s, b, h = call("GET", "/admin/devis.csv", cookie=cookie)
+check(s == 200 and "attachment" in h["Content-Disposition"] and "eve@exemple.fr" in b and "'=1+1" in b, "export CSV des devis (formules neutralisées)")
+s, b, h = call("POST", "/admin/devis/delete", {"id": qid}, cookie=cookie); check(s == 403, "suppression de devis sans jeton CSRF refusée")
+s, b, h = call("POST", "/admin/devis/delete", {"id": qid, "csrf": csrf}, cookie=cookie); check(s == 200 and "Oui, supprimer" in b, "suppression de devis : confirmation")
+s, b, h = call("POST", "/admin/devis/delete", {"id": qid, "csrf": csrf, "confirm": "1"}, cookie=cookie); check(s == 303 and "supprime" in h["Location"], "suppression de devis confirmée")
+s, b, h = call("GET", "/admin/devis", cookie=cookie); check(b.count('class="q"') == 1, "il reste 1 demande")
+
 s, b, h = call("GET", "/admin/", cookie=cookie[:-3] + "AAA"); check('type="password"' in b, "cookie trafiqué → reconnexion demandée")
 s, b, h = call("POST", "/admin/logout", {"csrf": csrf}, cookie=cookie); check(s == 303 and "Max-Age=0" in h["Set-Cookie"], "déconnexion")
 codes = [call("POST", "/admin/login", {"password": f"faux{i}"}, ip="198.51.100.66")[0] for i in range(6)]

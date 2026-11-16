@@ -82,18 +82,21 @@ Le formulaire de l'accueil (et la commande `inscris` du terminal) envoie l'email
 | Route | Rôle |
 | --- | --- |
 | `POST /api/subscribe` | inscription (JSON, ou formulaire classique sans JavaScript → `/#merci`) |
+| `POST /api/devis` | demande de devis : `kind` (vitrine, portfolio, evenement, reservations, autre), `email`, `name` et `message` facultatifs (JSON, ou formulaire sans JavaScript → `/#devis-merci`) |
 | `GET /api/count` | nombre d'inscrits ; `show` passe à `true` à partir de `COUNTER_MIN` (30 par défaut) |
 | `GET /api/health` | santé (healthcheck Docker) |
 
 Protections : pot de miel anti-robot, 5 inscriptions / 10 min par IP dans l'API et 10 / min dans nginx, emails normalisés,
 réponse identique pour un email déjà inscrit. L'adresse IP n'est pas stockée avec l'email.
+Demandes de devis : même pot de miel, compteur séparé (5 / 10 min par IP dans l'API, 5 / min dans nginx), message de 1 500 caractères max.
 
 Sur l'EC2, depuis `/opt/bytetuto` :
 
 ```bash
 docker compose exec api python app.py count                    # nombre d'inscrits
 docker compose exec -T api python app.py export > inscrits.csv    # pour l'email de lancement / l'outil de newsletter
-docker compose exec api python app.py delete toi@exemple.fr    # demande de suppression (RGPD)
+docker compose exec -T api python app.py devis > devis.csv       # demandes de devis
+docker compose exec api python app.py delete toi@exemple.fr    # demande de suppression (RGPD) : inscription et devis
 # sauvegarde de la base (volume Docker api-data)
 docker run --rm -v bytetuto_api-data:/data -v "$PWD":/out alpine cp /data/subscribers.db /out/inscrits-$(date +%F).db
 ```
@@ -101,6 +104,7 @@ docker run --rm -v bytetuto_api-data:/data -v "$PWD":/out alpine cp /data/subscr
 ### Page admin : https://bytetuto.com/admin/
 
 Liste des inscrits, recherche, téléchargement du CSV (s'ouvre dans Excel) et suppression avec confirmation.
+Onglet **Demandes de devis** (`/admin/devis`) : chaque demande avec son type, l'email, le nom et le message, un bouton « Répondre par email », la suppression avec confirmation et le CSV.
 
 - **Ouverte uniquement en HTTPS** : en HTTP seul, `/admin/` répond 404 (le mot de passe ne circule jamais en clair).
 - **Choisir ou changer le mot de passe** (sur l'EC2, dans `/opt/bytetuto`) : `bash deploy/set-admin-password.sh`.
